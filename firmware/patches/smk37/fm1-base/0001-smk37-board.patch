@@ -294,7 +294,7 @@
  const uint8_t *plat_chip_uid(void) { return flash_ok ? flash_uid : 0; }
 --- a/device/plat_smk37.c
 +++ b/device/plat_smk37.c
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,135 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* fm1-base on the M-VAVE SMK-37 (BOARD_SMK37): plat.h's panel on felucca-bsp's boards/smk37 scan, through
@@ -364,23 +364,37 @@
 +int32_t plat_enc(int role)
 +{
 +    int32_t r;
++    uint32_t k;
++    int target;
 +    if (role < 0 || role >= NE)
 +        return 0;
 +    r = remote.enc[role];
 +    remote.enc[role] = 0;
-+    r += smk_enc_take(SMK_ENC_OF_ROLE[role]) + smk_panel_enc(role) + mirror_in_enc(role);
++    target = smk_role_to_act(role);
++    if (target >= 0) {
++        for (k = 0; k < 8u; k++) {
++            if (smk_live_encs[k] == (uint8_t)target)
++                r += smk_enc_take(k);
++        }
++    }
++    r += smk_panel_enc(role) + mirror_in_enc(role);
 +    if (r)
 +        mirror_enc(role, r);
 +    return r;
 +}
 +
-+static volatile uint32_t master_pos = 2896;   /* MASTER's position, 0..4096: K1's (half the level, m * m >> 12, at
++static volatile uint32_t master_pos = 2896;   /* MASTER's position, 0..4096: (half the level, m * m >> 12, at
 +                                               * power-on), the remote's or the mirror's when they set it */
 +static int32_t smk_master = 2896;
 +uint32_t plat_master(void) { return master_pos; }
-+static void smk_master_step(void)             /* (main loop) K1's detents into MASTER */
++static void smk_master_step(void)             /* (main loop) detents into MASTER */
 +{
-+    int32_t d = smk_enc_take(SMK_ENC_MASTER);
++    int32_t d = 0;
++    uint32_t k;
++    for (k = 0; k < 8u; k++) {
++        if (smk_live_encs[k] == 7u)
++            d += smk_enc_take(k);
++    }
 +    if (d) {
 +        smk_master += d * SMK_MASTER_STEP;
 +        smk_master = smk_master < 0 ? 0 : smk_master > 4096 ? 4096 : smk_master;
@@ -418,7 +432,7 @@
 +}
 --- a/device/smk_panel.c
 +++ b/device/smk_panel.c
-@@ -0,0 +1,302 @@
+@@ -0,0 +1,421 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* The M-VAVE SMK-37's panel as an FM-1's (BOARD_SMK37): plat.h's buttons, keys, encoders and lights on the SMK's
@@ -446,12 +460,56 @@
 + *             (lit, the two steady levels, the mid level, the glow), in the warm white of the FM-1's key LEDs
 + *   the rest  the pitch wheel -8192..8191, the mod wheel 0..127, the pedal down / up: changes */
 +
-+static uint8_t SMK_BTN_OF_LABEL[NB] = {                /* plat.h's B_* -> the SMK's button (RemoteSMK Semantic) */
-+    SMK_B_FX, SMK_B_NOTE_REPEAT, SMK_B_SCALE, SMK_B_CHORD, SMK_B_PARA, SMK_B_GLOBE, SMK_B_PATCH, SMK_B_BT,
-+    SMK_B_ARP, SMK_B_SEQ, SMK_B_PLAY, SMK_B_REC, SMK_B_OCT_DN, SMK_B_OCT_UP};
-+static uint8_t SMK_ENC_OF_ROLE[NE] = {4, 6, 5, 0, 1, 2, 3};   /* EN_* -> K5, K8 (ALGO), K7 (PRESET), K1..K4 (K8 is MASTER) */
-+#define SMK_ENC_MASTER 7u
++static uint8_t smk_live_btns[18] = {
++    17, 16, 14, 15, 0, 1, 10, 18, 3, 19, 7, 9, 8, 6, 2, 11, 12, 13
++};
++static uint8_t smk_live_encs[8] = {
++    0, 1, 2, 3, 4, 7, 5, 6
++};
++static uint8_t smk_live_faders[4] = {
++    1, 2, 3, 4
++};
++static uint8_t smk_live_midi[60] = {
++    0, 0, 0, 9,
++    20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
++    70, 71, 72, 73, 74, 75, 76, 77,
++    36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
++    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67
++};
 +#define SMK_MASTER_STEP 96                                    /* MASTER's position (0..4096) a detent of K1 */
++static inline int smk_act_to_btn(uint8_t act) {
++    switch (act) {
++    case 0:  return B_OCTDN;
++    case 1:  return B_OCTUP;
++    case 2:  return B_FX;
++    case 3:  return B_ENV;
++    case 4:  return B_ENV;
++    case 5:  return B_LFO;
++    case 6:  return B_EDIT;
++    case 7:  return B_GLO;
++    case 8:  return B_HOME;
++    case 9:  return B_SAVE;
++    case 10: return B_ARP;
++    case 11: return B_SEQ;
++    case 12: return B_PLAY;
++    case 13: return B_REC;
++    case 18: return B_SEL;
++    case 19: return B_LFO;
++    default: return -1;
++    }
++}
++static inline int smk_role_to_act(int role) {
++    switch (role) {
++    case EN_K1:     return 0;
++    case EN_K2:     return 1;
++    case EN_K3:     return 2;
++    case EN_K4:     return 3;
++    case EN_SELECT: return 4;
++    case EN_PRESET: return 5;
++    case EN_ALGO:   return 6;
++    default:        return -1;
++    }
++}
 +static const uint8_t SMK_WHITE_K[16] = PLAT_WHITE_KEYS;       /* white key w (= the pad in reading order) -> key */
 +static const uint8_t SMK_EXTRA_BTN[2] = {SMK_B_KNOB_BANK, SMK_B_FADER_BANK};
 +_Static_assert(PLAT_SMK_KNOB_BANK == 0 && PLAT_SMK_FADER_BANK == 1, "plat.h's extra buttons in SMK_EXTRA_BTN's order");
@@ -488,9 +546,13 @@
 +static uint32_t smk_fm1_buttons(uint32_t smk)                /* the SMK's buttons -> plat.h's B_* */
 +{
 +    uint32_t b = 0, i;
-+    for (i = 0; i < NB; i++)
-+        if (smk >> SMK_BTN_OF_LABEL[i] & 1u)
-+            b |= 1u << i;
++    for (i = 0; i < 18u; i++) {
++        if (smk >> i & 1u) {
++            int btn = smk_act_to_btn(smk_live_btns[i]);
++            if (btn >= 0 && btn < NB)
++                b |= 1u << btn;
++        }
++    }
 +    return b;
 +}
 +
@@ -575,15 +637,21 @@
 +        if ((k < SMK_KEY_F3 || k >= SMK_KEY_F3 + NKEYS) && on != was)
 +            smk_q_put(PLAT_SMK_KEY, k, on ? r.key_vel[k] : 0u);
 +    }
-+    for (i = 0; i < 2u; i++) {
-+        uint32_t b = SMK_EXTRA_BTN[i], on = r.btns >> b & 1u;
-+        if (on != (smk_pn.was.btns >> b & 1u))
-+            smk_q_put(PLAT_SMK_BTN, i, on);
++    for (i = 0; i < 18u; i++) {
++        uint32_t on = r.btns >> i & 1u, was = smk_pn.was.btns >> i & 1u;
++        if (on != was) {
++            if (smk_live_btns[i] == 17u)
++                smk_q_put(PLAT_SMK_BTN, PLAT_SMK_KNOB_BANK, on);
++            else if (smk_live_btns[i] == 16u)
++                smk_q_put(PLAT_SMK_BTN, PLAT_SMK_FADER_BANK, on);
++        }
++        if (on && !was) {
++            if (smk_live_btns[i] == 14u)
++                smk_pn.enc[EN_SELECT]--;
++            else if (smk_live_btns[i] == 15u)
++                smk_pn.enc[EN_SELECT]++;
++        }
 +    }
-+    if ((r.btns & ~smk_pn.was.btns) >> SMK_B_LEFT & 1u)       /* < and >: SELECT a detent a press */
-+        smk_pn.enc[EN_SELECT]--;
-+    if ((r.btns & ~smk_pn.was.btns) >> SMK_B_RIGHT & 1u)
-+        smk_pn.enc[EN_SELECT]++;
 +    smk_panel_faders(&r);
 +    if (r.bend != smk_pn.was.bend)
 +        smk_pn.dirty |= 1u << 0;
@@ -668,14 +736,21 @@
 +{
 +    uint32_t led = 0, i, rgb;
 +    uint8_t lvl;
-+    for (i = 0; i < NB; i++)
-+        if (smk_lt.b >> i & 1u)
-+            led |= 1u << SMK_BTN_OF_LABEL[i];
-+    led &= ~(1u << SMK_B_PLAY);                               /* PLAY: B_PLAY its red half, LED_PLAY_GREEN its green */
-+    if (smk_lt.b >> B_PLAY & 1u)
-+        led |= 1u << SMK_LED_PLAY_RED;
-+    if (smk_lt.b & LED_PLAY_GREEN)
-+        led |= 1u << SMK_B_PLAY;
++    for (i = 0; i < 18u; i++) {
++        int btn = smk_act_to_btn(smk_live_btns[i]);
++        if (btn >= 0 && btn < NB && (smk_lt.b >> btn & 1u)) {
++            if (btn != B_PLAY)
++                led |= 1u << i;
++        }
++    }
++    for (i = 0; i < 18u; i++) {
++        if (smk_live_btns[i] == 12u) {
++            if (smk_lt.b >> B_PLAY & 1u)
++                led |= 1u << SMK_LED_PLAY_RED;
++            if (smk_lt.b & LED_PLAY_GREEN)
++                led |= 1u << i;
++        }
++    }
 +    for (i = 0; i < SMK_NPAD; i++) {
 +        uint32_t m = 1u << SMK_WHITE_K[i], r, g, b;
 +        lvl = smk_lt.k & m ? 255u : smk_lt.la & m ? (uint8_t)(smk_lt.a8 * 255u / 8u) :
@@ -720,6 +795,64 @@
 +    smk_lt.a8 = (uint8_t)(a8 > 8u ? 8u : a8);
 +    smk_lt.b8 = (uint8_t)(b8 > 8u ? 8u : b8);
 +    smk_lights_update();
++}
++
++int app_sysex(const uint8_t *p, uint32_t n)
++{
++    if (n < 5u || p[0] != 0x7Du || p[1] != 0x53u || p[2] != 0x4Du || p[3] != 0x4Bu)
++        return 0;
++    if (p[4] == 0x01u) {
++        uint8_t rep[97];
++        uint32_t i;
++        rep[0] = 0xF0;
++        rep[1] = 0x7D;
++        rep[2] = 0x53;
++        rep[3] = 0x4D;
++        rep[4] = 0x4B;
++        rep[5] = 0x11;
++        for (i = 0; i < 18u; i++) rep[6u + i] = smk_live_btns[i];
++        for (i = 0; i < 8u; i++)  rep[24u + i] = smk_live_encs[i];
++        for (i = 0; i < 4u; i++)  rep[32u + i] = smk_live_faders[i];
++        for (i = 0; i < 60u; i++) rep[36u + i] = smk_live_midi[i];
++        rep[96] = 0xF7;
++        plat_sysex_send(rep, sizeof(rep));
++        return 1;
++    }
++    if (p[4] == 0x02u) {
++        uint32_t i;
++        for (i = 0; i < 18u && 5u + i < n; i++)
++            smk_live_btns[i] = p[5u + i];
++        for (i = 0; i < 8u && 23u + i < n; i++)
++            smk_live_encs[i] = p[23u + i];
++        for (i = 0; i < 4u && 31u + i < n; i++)
++            smk_live_faders[i] = p[31u + i];
++        for (i = 0; i < 60u && 35u + i < n; i++)
++            smk_live_midi[i] = p[35u + i];
++        smk_lights_dirty |= 2u;
++        {
++            static const uint8_t ack[7] = {0xF0, 0x7D, 0x53, 0x4D, 0x4B, 0x12, 0xF7};
++            plat_sysex_send(ack, sizeof(ack));
++        }
++        return 1;
++    }
++    if (p[4] == 0x03u) {
++        if (n >= 6u && (p[5] == 0x00u || p[5] == 0x01u)) {
++            static const uint8_t def_btns[18] = {17, 16, 14, 15, 0, 1, 10, 18, 3, 19, 7, 9, 8, 6, 2, 11, 12, 13};
++            static const uint8_t def_encs[8] = {0, 1, 2, 3, 4, 7, 5, 6};
++            static const uint8_t def_faders[4] = {1, 2, 3, 4};
++            uint32_t i;
++            for (i = 0; i < 18u; i++) smk_live_btns[i] = def_btns[i];
++            for (i = 0; i < 8u; i++)  smk_live_encs[i] = def_encs[i];
++            for (i = 0; i < 4u; i++)  smk_live_faders[i] = def_faders[i];
++            smk_lights_dirty |= 2u;
++        }
++        {
++            static const uint8_t ack[7] = {0xF0, 0x7D, 0x53, 0x4D, 0x4B, 0x12, 0xF7};
++            plat_sysex_send(ack, sizeof(ack));
++        }
++        return 1;
++    }
++    return 0;
 +}
 --- a/device/smk_store.c
 +++ b/device/smk_store.c
@@ -892,7 +1025,7 @@
  #include "btdev.c"                /* Bluetooth MIDI devices for an app's page (lib/btdev.h) */
 --- a/host/plat_host.c
 +++ b/host/plat_host.c
-@@ -156,17 +156,46 @@
+@@ -156,17 +156,59 @@
  static void mirror_enc(int role, int32_t n) { (void)role, (void)n; }
  static void mirror_leds(uint32_t buttons, uint32_t keys) { (void)buttons, (void)keys; }
  #endif
@@ -926,7 +1059,20 @@
 +}
 +#define SMK_SIM_BUTTONS() smk_fm1_buttons(smk_sim.r.btns)
 +#define SMK_SIM_KEYS() (smk_panel_poll(), smk_fm1_keys())
-+#define SMK_SIM_ENC(role) (smk_sim_enc(SMK_ENC_OF_ROLE[role]) + smk_panel_enc(role))
++static int32_t smk_sim_enc_role(int role)
++{
++    int32_t v = 0;
++    uint32_t k;
++    int target = smk_role_to_act(role);
++    if (target >= 0) {
++        for (k = 0; k < 8u; k++) {
++            if (smk_live_encs[k] == (uint8_t)target)
++                v += smk_sim_enc(k);
++        }
++    }
++    return v + smk_panel_enc(role);
++}
++#define SMK_SIM_ENC(role) smk_sim_enc_role(role)
 +#else
 +#define SMK_SIM_BUTTONS() 0u
 +#define SMK_SIM_KEYS() 0u
@@ -1137,7 +1283,7 @@
 +            return 2;
 +        }
 +        for (n = atoi(c), s1 = n > 0 ? 1 : -1; n; n -= s1) {
-+            if (e == (int)SMK_ENC_MASTER) {
++            if (smk_live_encs[e] == 7u) {
 +                int32_t m = (int32_t)master + s1 * SMK_MASTER_STEP;
 +                master = (uint32_t)(m < 0 ? 0 : m > 4096 ? 4096 : m);
 +            } else {

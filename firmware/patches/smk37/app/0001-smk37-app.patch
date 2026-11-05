@@ -1,16 +1,18 @@
 --- a/app.h
 +++ b/app.h
-@@ -12,6 +12,9 @@
+@@ -12,6 +12,11 @@
  #define APP_PALETTE 2u                   /* gfx.c's CYAN */
  #define APP_BLOCK 256u                   /* the standalone DX7 (sa/sa_main.c sa_render): 8 of FM6's 32-frame blocks */
  #define APP_CANVAS_PX (240u * 32u)       /* the standalone screens' two 16-row bands (sa/sa_gfx.c) */
 +#if BOARD_SMK37
 +#define FM1B_TRS 0                       /* the M-Vave SMK-37 (docs/SMK37.md): its TRS jack is MIDI out, and PH8 a matrix row */
++#define APP_SYSEX
++int app_sysex(const uint8_t *p, uint32_t n);
 +#endif
  #ifndef FM1B_TRS
  #define FM1B_TRS 1                       /* MIDI in on the TRS jack (fm1-base device/midi_uart.c): standalone, it plays the
                                           * DX7 as USB and Bluetooth MIDI do; in a session it goes to the host (MIDI_IN) */
-@@ -49,12 +52,37 @@
+@@ -49,12 +54,37 @@
   * XDATA0 (0x93000..0x96FFF) are read once and taken over; XDATA0 is no longer written. APP_STORE_OK keeps fm1-base's
   * store and the app to exactly these windows (the device's st_erase / st_prog; the simulator refuses a save outside
   * them; tests/store_window_test.c). */
