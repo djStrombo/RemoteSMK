@@ -449,7 +449,7 @@
 +static uint8_t SMK_BTN_OF_LABEL[NB] = {                /* plat.h's B_* -> the SMK's button (RemoteSMK Semantic) */
 +    SMK_B_FX, SMK_B_NOTE_REPEAT, SMK_B_SCALE, SMK_B_CHORD, SMK_B_PARA, SMK_B_GLOBE, SMK_B_PATCH, SMK_B_BT,
 +    SMK_B_ARP, SMK_B_SEQ, SMK_B_PLAY, SMK_B_REC, SMK_B_OCT_DN, SMK_B_OCT_UP};
-+static uint8_t SMK_ENC_OF_ROLE[NE] = {4, 5, 6, 0, 1, 2, 3};   /* EN_* -> K5..K7, K1..K4 (K8 is MASTER) */
++static uint8_t SMK_ENC_OF_ROLE[NE] = {4, 6, 5, 0, 1, 2, 3};   /* EN_* -> K5, K8 (ALGO), K7 (PRESET), K1..K4 (K8 is MASTER) */
 +#define SMK_ENC_MASTER 7u
 +#define SMK_MASTER_STEP 96                                    /* MASTER's position (0..4096) a detent of K1 */
 +static const uint8_t SMK_WHITE_K[16] = PLAT_WHITE_KEYS;       /* white key w (= the pad in reading order) -> key */

@@ -144,12 +144,12 @@ const BUTTON_PROFILES = {
 };
 
 const KNOB_PROFILES = {
-  standard: [0, 1, 2, 3, 4, 5, 6, 7],
+  standard: [0, 1, 2, 3, 4, 7, 5, 6],
   stock: [7, 4, 6, 5, 0, 1, 2, 3],
-  performance: [7, 0, 1, 2, 3, 4, 5, 6]
+  performance: [0, 1, 2, 3, 4, 7, 5, 6]
 };
 
-const SMKDEE_DEFAULT_ENCODERS = [0, 1, 2, 3, 4, 5, 6, 7];
+const SMKDEE_DEFAULT_ENCODERS = [0, 1, 2, 3, 4, 7, 5, 6];
 const SMKDEE_DEFAULT_FADERS = [1, 2, 3, 4];
 
 const DEFAULT_MIDI_CONFIG = {
