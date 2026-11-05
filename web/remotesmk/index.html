@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SMK-dee // Installer &amp; Live Hardware Mapper</title>
+  <title>RemoteSMK // Live Studio &amp; Hardware Mapper</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
       </button>
       <button class="nav-tab-btn" id="btn-view-editor" type="button">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5v14M22 9v6M7 5v14M2 9v6"/></svg>
-        02 // SYNTH SOUND EDITOR
+        02 // FM-1 PLAYER &amp; EMULADOR
       </button>
     </div>
 
@@ -56,45 +56,45 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
               01 // Firmware Selection
             </h2>
-            <p class="card-desc">Select SMK-dee or Factory Restore. Hardware model (Pro / Elite) is detected automatically when your keyboard connects.</p>
+            <p class="card-desc">Select RemoteSMK or Factory Restore. Hardware model (Pro / Elite) is detected automatically when your keyboard connects.</p>
           </div>
 
           <!-- Pro / Elite Hardware Model Switcher (Auto-detected on connect) -->
           <div style="display: flex; align-items: center; gap: 0.6rem;">
             <span style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;">MODEL //</span>
             <div class="model-switch-group" role="group" aria-label="Target Hardware Model">
-              <button type="button" class="model-switch-btn active" id="btn-model-pro" data-model="pro">SMK-37 PRO</button>
-              <button type="button" class="model-switch-btn" id="btn-model-elite" data-model="elite">SMK-37 ELITE</button>
+              <button type="button" class="model-switch-btn" id="btn-model-pro" data-model="pro">SMK-37 PRO</button>
+              <button type="button" class="model-switch-btn active" id="btn-model-elite" data-model="elite">SMK-37 ELITE</button>
             </div>
-            <input type="hidden" id="target-model" value="pro">
+            <input type="hidden" id="target-model" value="elite">
           </div>
         </div>
 
-        <!-- 3 Firmware Selection Cards: SMK-dee v1.6.1, SMK-dee v1.4.2 & Stock Factory Restore -->
+        <!-- 3 Firmware Selection Cards: RemoteSMK v0.3.2, RemoteFM1 Stock & Stock Factory Restore -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
 
-          <!-- SMK-dee v1.6.1 Poly Synth + BLE Card -->
-          <div class="fw-card active" id="fw-card-smkdee">
+          <!-- RemoteSMK v0.3.2 Card -->
+          <div class="fw-card active" id="fw-card-remotesmk">
             <div class="fw-card-top">
               <div class="fw-title-group">
-                <div class="fw-id-tag">MOD // 01 (NEW)</div>
+                <div class="fw-id-tag">MOD // 01 (REMOTESMK)</div>
                 <div class="fw-title">
                   <span class="fw-dot"></span>
-                  SMK-dee
-                  <span class="fw-version">v1.6.1</span>
+                  RemoteSMK
+                  <span class="fw-version">v0.3.2</span>
                 </div>
-                <div class="fw-category">Dual-Core Synth + Bluetooth MIDI</div>
+                <div class="fw-category">FM-1 DX7 Synth + Semantic Silk Mapping + Independent MIDI Ctrl</div>
               </div>
-              <button class="fw-select-btn" id="btn-select-smkdee" type="button">ACTIVE</button>
+              <button class="fw-select-btn" id="btn-select-remotesmk" type="button">ACTIVE</button>
             </div>
 
             <div class="fw-desc">
-              Dual-core polyphonic synthesizer ported to M-VAVE SMK-37 Pro &amp; Elite by <strong>djStrombo</strong>. Based on <strong>Melodee v1.6.1</strong> with native <strong>Bluetooth MIDI (BLE)</strong> support. Dedicated BT button page, 37 physical keys with dynamic velocity, multitrack synthesis, hardware sequencer, and live SysEx control mapping.
+              Enhanced RemoteFM1 firmware by <strong>djStrombo</strong>. Semantic button mapping (ARP-&gt;ARP, FX-&gt;FX, GLO-&gt;GLO), standard knob mapping, independent MIDI Control mode with 16 knobs and 8 faders across dual banks, 32 pads drum/note mapper, and 100% FM-1 protocol compatibility for RemoteFM1 companion apps.
             </div>
 
             <div class="fw-footer">
               <div class="fw-meta-row">
-                <div>ENGINE // <strong>MELODEE 1.6.1</strong></div>
+                <div>ENGINE // <strong>REMOTESMK 0.3.2</strong></div>
                 <div>PORT // <strong>DJSTROMBO</strong></div>
                 <div>BLE // NATIVE WIRELESS</div>
               </div>
@@ -102,40 +102,11 @@
             </div>
           </div>
 
-          <!-- SMK-dee v1.4.2 Legacy Card -->
-          <div class="fw-card" id="fw-card-smkdee-142">
-            <div class="fw-card-top">
-              <div class="fw-title-group">
-                <div class="fw-id-tag">MOD // 02 (LEGACY)</div>
-                <div class="fw-title">
-                  <span class="fw-dot"></span>
-                  SMK-dee
-                  <span class="fw-version">v1.4.2</span>
-                </div>
-                <div class="fw-category">Dual-Core Polyphonic Synthesizer</div>
-              </div>
-              <button class="fw-select-btn" id="btn-select-smkdee-142" type="button">SELECT</button>
-            </div>
-
-            <div class="fw-desc">
-              Stable release v1.4.2 of SMK-dee. Multi-engine synthesis, step sequencer, arp, custom LED feedback, and MIDI controller mode.
-            </div>
-
-            <div class="fw-footer">
-              <div class="fw-meta-row">
-                <div>ENGINE // <strong>MELODEE 1.4.2</strong></div>
-                <div>PORT // <strong>DJSTROMBO</strong></div>
-                <div>STATUS // STABLE</div>
-              </div>
-              <span class="fw-status-badge">STABLE</span>
-            </div>
-          </div>
-
           <!-- Stock Factory V016 Restore Card -->
           <div class="fw-card" id="fw-card-stock">
             <div class="fw-card-top">
               <div class="fw-title-group">
-                <div class="fw-id-tag">MOD // 03 (FACTORY)</div>
+                <div class="fw-id-tag">MOD // 02 (FACTORY)</div>
                 <div class="fw-title">
                   <span class="fw-dot"></span>
                   Factory Restore
@@ -395,32 +366,40 @@
 
     </div><!-- /#view-flasher-mapper -->
 
-    <!-- View 02: Fullscreen Dedicated Synth Sound & Preset Editor -->
-    <div id="view-sound-editor" class="view-pane" style="display: none; flex-direction: column;">
-      <div class="editor-version-bar" id="editor-version-bar">
-        <div class="editor-ver-left">
-          <span class="editor-ver-title">EDITOR ENGINE //</span>
-          <div class="editor-ver-group" role="group" aria-label="Editor Engine Version">
-            <button type="button" class="editor-ver-btn active" id="btn-editor-ver-161" data-ver="1.6.1">
-              <span class="ver-dot"></span> SMK-dee v1.6.1 (Latest)
+    <!-- View 02: FM-1 Player & Firmware Emulator -->
+    <div id="view-sound-editor" class="view-pane" style="display: none; flex-direction: column; height: calc(100vh - 70px);">
+      <div class="editor-version-bar" id="editor-version-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; background: var(--bg-card); border-bottom: 1px solid var(--border-hairline);">
+        <div class="editor-ver-left" style="display: flex; align-items: center; gap: 0.75rem;">
+          <span class="editor-ver-title" style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.08em;">EMULATOR ENGINE //</span>
+          <div class="editor-ver-group" role="group" aria-label="Emulator Engine View" style="display: flex; gap: 0.4rem;">
+            <button type="button" class="editor-ver-btn active" id="btn-engine-player" data-target="site/index.html">
+              <span class="ver-dot"></span> FM-1 Player (RemoteFM1)
             </button>
-            <button type="button" class="editor-ver-btn" id="btn-editor-ver-142" data-ver="1.4.2">
-              <span class="ver-dot"></span> SMK-dee v1.4.2 (Legacy)
+            <button type="button" class="editor-ver-btn" id="btn-engine-smk37" data-target="emu-smk37/index.html">
+              <span class="ver-dot"></span> SMK-37 Virtual Surface
+            </button>
+            <button type="button" class="editor-ver-btn" id="btn-engine-editor" data-target="editor.html">
+              <span class="ver-dot"></span> Sound &amp; DX7 Editor
             </button>
           </div>
         </div>
-        <div class="editor-ver-right">
-          <span class="editor-ver-pill" id="editor-detected-pill">AUTO-DETECT: READY</span>
+        <div class="editor-ver-right" style="display: flex; align-items: center; gap: 0.75rem;">
+          <a href="site/index.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-open-external-player" style="font-size: 0.72rem; padding: 0.25rem 0.6rem; text-decoration: none;" title="Abrir FM-1 Player en ventana completa independiente">
+            Abrir en ventana nueva ↗
+          </a>
+          <span class="editor-ver-pill" id="editor-detected-pill" style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-orange); background: rgba(255,107,0,0.1); padding: 0.25rem 0.6rem; border-radius: 4px; border: 1px solid rgba(255,107,0,0.2);">
+            LIVE HOST STREAMING
+          </span>
         </div>
       </div>
-      <iframe id="sound-editor-frame" src="" data-src="editor.html" style="flex: 1; width: 100%; border: none;" allow="midi *; sysex *; usb *" allowfullscreen></iframe>
+      <iframe id="sound-editor-frame" src="" data-src="site/index.html" style="flex: 1; width: 100%; border: none; min-height: 85vh;" allow="midi *; sysex *; usb *; audio *" allowfullscreen></iframe>
     </div>
 
   </main>
 
   <!-- Industrial Footer -->
   <footer>
-    SMK-dee STUDIO &amp; MAPPER // v1.6.1 LOCAL // PORTED BY <a href="https://github.com/djStrombo" target="_blank" style="color: inherit; text-decoration: underline;">djStrombo</a> // BASED ON <a href="https://github.com/keremimo/melodee" target="_blank" style="color: inherit; text-decoration: underline;">MELODEE (FM-1)</a> // GPL-3.0
+    RemoteSMK STUDIO LAB // v0.3.2 LOCAL // PORTED BY <a href="https://github.com/djStrombo" target="_blank" style="color: inherit; text-decoration: underline;">djStrombo</a> // BASED ON <a href="https://github.com/Quixotic7/RemoteFM1" target="_blank" style="color: inherit; text-decoration: underline;">RemoteFM1</a> // MPL-2.0
   </footer>
 
   <script src="app.js"></script>

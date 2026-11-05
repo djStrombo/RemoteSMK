@@ -182,7 +182,7 @@ let activeMidiKnobBank = 1; // 1 = K1..K8, 2 = K9..K16
 let activeMidiPadBank = "A"; // "A" = PAD 01..16, "B" = PAD 17..32
 
 // Firmware Selection State: 'smkdee' or 'stock'
-let activeFirmwareType = "smkdee";
+let activeFirmwareType = "remotesmk";
 
 const $ = (id) => document.getElementById(id);
 
@@ -258,41 +258,33 @@ function getTargetModel() {
 }
 
 // ---------------------------------------------------------------------------
-// Firmware Selection Cards (SMK-dee v1.6.1, v1.4.2 & Stock V016)
+// Firmware Selection Cards (RemoteSMK v0.3.2 & Stock V016)
 // ---------------------------------------------------------------------------
 function initFirmwareCards() {
-  const btnSmkDee = $("btn-select-smkdee");
-  const btnSmkDee142 = $("btn-select-smkdee-142");
+  const btnRemoteSmk = $("btn-select-remotesmk");
   const btnStock = $("btn-select-stock");
-  const cardSmkDee = $("fw-card-smkdee");
-  const cardSmkDee142 = $("fw-card-smkdee-142");
+  const cardRemoteSmk = $("fw-card-remotesmk");
   const cardStock = $("fw-card-stock");
 
-  if (cardSmkDee) cardSmkDee.addEventListener("click", () => selectFirmware("smkdee"));
-  if (cardSmkDee142) cardSmkDee142.addEventListener("click", () => selectFirmware("smkdee-142"));
+  if (cardRemoteSmk) cardRemoteSmk.addEventListener("click", () => selectFirmware("remotesmk"));
   if (cardStock) cardStock.addEventListener("click", () => selectFirmware("stock"));
 
-  if (btnSmkDee) btnSmkDee.addEventListener("click", (e) => { e.stopPropagation(); selectFirmware("smkdee"); });
-  if (btnSmkDee142) btnSmkDee142.addEventListener("click", (e) => { e.stopPropagation(); selectFirmware("smkdee-142"); });
+  if (btnRemoteSmk) btnRemoteSmk.addEventListener("click", (e) => { e.stopPropagation(); selectFirmware("remotesmk"); });
   if (btnStock) btnStock.addEventListener("click", (e) => { e.stopPropagation(); selectFirmware("stock"); });
 }
 
 function selectFirmware(type) {
   activeFirmwareType = type;
 
-  const cardSmkDee = $("fw-card-smkdee");
-  const cardSmkDee142 = $("fw-card-smkdee-142");
+  const cardRemoteSmk = $("fw-card-remotesmk");
   const cardStock = $("fw-card-stock");
-  const btnSmkDee = $("btn-select-smkdee");
-  const btnSmkDee142 = $("btn-select-smkdee-142");
+  const btnRemoteSmk = $("btn-select-remotesmk");
   const btnStock = $("btn-select-stock");
 
-  if (cardSmkDee) cardSmkDee.classList.toggle("active", activeFirmwareType === "smkdee");
-  if (cardSmkDee142) cardSmkDee142.classList.toggle("active", activeFirmwareType === "smkdee-142");
+  if (cardRemoteSmk) cardRemoteSmk.classList.toggle("active", activeFirmwareType === "remotesmk");
   if (cardStock) cardStock.classList.toggle("active", activeFirmwareType === "stock");
 
-  if (btnSmkDee) btnSmkDee.textContent = activeFirmwareType === "smkdee" ? "ACTIVE" : "SELECT";
-  if (btnSmkDee142) btnSmkDee142.textContent = activeFirmwareType === "smkdee-142" ? "ACTIVE" : "SELECT";
+  if (btnRemoteSmk) btnRemoteSmk.textContent = activeFirmwareType === "remotesmk" ? "ACTIVE" : "SELECT";
   if (btnStock) btnStock.textContent = activeFirmwareType === "stock" ? "ACTIVE" : "SELECT";
 
   updateActiveFirmwareDisplay();
@@ -303,10 +295,7 @@ function resolveFirmwarePath() {
   if (activeFirmwareType === "stock") {
     return model === "elite" ? "firmware/SMK-37_Elite_016.fwsc" : "firmware/SMK-37_Pro_016.fwsc";
   }
-  if (activeFirmwareType === "smkdee-142") {
-    return `firmware/smk-dee-1.4.2-${model}.fwsc`;
-  }
-  return `firmware/smk-dee-1.6.1-${model}.fwsc`;
+  return model === "elite" ? "firmware/remotefm1-smk37-elite.fwsc" : "firmware/remotefm1-smk37.fwsc";
 }
 
 function resolveDownloadFilename() {
@@ -314,10 +303,7 @@ function resolveDownloadFilename() {
   if (activeFirmwareType === "stock") {
     return model === "elite" ? "SMK-37_Elite_016.fwsc" : "SMK-37_Pro_016.fwsc";
   }
-  if (activeFirmwareType === "smkdee-142") {
-    return `SMK-dee-v1.4.2-${model}.fwsc`;
-  }
-  return `SMK-dee-v1.6.1-${model}.fwsc`;
+  return model === "elite" ? "remotefm1-smk37-elite.fwsc" : "remotefm1-smk37.fwsc";
 }
 
 function updateActiveFirmwareDisplay() {
@@ -342,16 +328,29 @@ function updateActiveFirmwareDisplay() {
 let currentEditorVersion = "1.6.1";
 let detectedHardwareFw = null;
 
-function setEditorVersion(ver, userInitiated = false) {
-  currentEditorVersion = ver;
-  const btn161 = $("btn-editor-ver-161");
-  const btn142 = $("btn-editor-ver-142");
+let currentEmulatorEngine = "player"; // "player", "smk37", "editor"
+
+function setEmulatorEngine(engine, userInitiated = false) {
+  currentEmulatorEngine = engine;
+  const btnPlayer = $("btn-engine-player");
+  const btnSmk37 = $("btn-engine-smk37");
+  const btnEditor = $("btn-engine-editor");
+  const btnExternal = $("btn-open-external-player");
   const editorFrame = $("sound-editor-frame");
 
-  if (btn161) btn161.classList.toggle("active", ver === "1.6.1");
-  if (btn142) btn142.classList.toggle("active", ver === "1.4.2");
+  if (btnPlayer) btnPlayer.classList.toggle("active", engine === "player");
+  if (btnSmk37) btnSmk37.classList.toggle("active", engine === "smk37");
+  if (btnEditor) btnEditor.classList.toggle("active", engine === "editor");
 
-  const targetSrc = ver === "1.4.2" ? "editor-v1.4.html" : "editor.html";
+  let targetSrc = "site/index.html";
+  if (engine === "smk37") targetSrc = "emu-smk37/index.html";
+  if (engine === "editor") targetSrc = "editor.html";
+
+  if (btnExternal) {
+    btnExternal.href = targetSrc;
+    btnExternal.textContent = engine === "player" ? "Abrir FM-1 Player ↗" : "Abrir en ventana nueva ↗";
+  }
+
   if (editorFrame) {
     editorFrame.dataset.src = targetSrc;
     if (editorFrame.src && editorFrame.src !== "about:blank" && !editorFrame.src.endsWith(targetSrc)) {
@@ -360,28 +359,8 @@ function setEditorVersion(ver, userInitiated = false) {
   }
 
   if (userInitiated) {
-    installLog(`Switched Synth Sound Editor to v${ver} engine (${targetSrc}).`, "info");
+    installLog(`Cambiado emulador a: ${engine.toUpperCase()} (${targetSrc}).`, "info");
   }
-}
-
-async function detectFirmwareVersion(link, timeoutMs = 700) {
-  if (!link) return null;
-  link.drain();
-  // CMD.INFO SysEx: F0 7D 46 4C 01 F7
-  if (!link.send([0xF0, 0x7D, 0x46, 0x4C, 0x01, 0xF7])) return null;
-  const end = Date.now() + timeoutMs;
-  while (Date.now() < end) {
-    const pkt = await link.read(end - Date.now());
-    if (!pkt || pkt.length < 6) continue;
-    if (pkt[0] === 0xF0 && pkt[1] === 0x7D && pkt[2] === 0x46 && pkt[3] === 0x4C && pkt[4] === 0x01) {
-      let s = "";
-      for (let i = 5; i < pkt.length - 1 && pkt[i] !== 0; i++) {
-        s += String.fromCharCode(pkt[i]);
-      }
-      return s; // e.g. "MELODEE v1.6.1"
-    }
-  }
-  return null;
 }
 
 function initTopNavViews() {
@@ -389,11 +368,14 @@ function initTopNavViews() {
   const btnEditor = $("btn-view-editor");
   const viewFlasher = $("view-flasher-mapper");
   const viewEditor = $("view-sound-editor");
-  const btnVer161 = $("btn-editor-ver-161");
-  const btnVer142 = $("btn-editor-ver-142");
 
-  if (btnVer161) btnVer161.addEventListener("click", () => setEditorVersion("1.6.1", true));
-  if (btnVer142) btnVer142.addEventListener("click", () => setEditorVersion("1.4.2", true));
+  const btnPlayer = $("btn-engine-player");
+  const btnSmk37 = $("btn-engine-smk37");
+  const btnEditorEngine = $("btn-engine-editor");
+
+  if (btnPlayer) btnPlayer.addEventListener("click", () => setEmulatorEngine("player", true));
+  if (btnSmk37) btnSmk37.addEventListener("click", () => setEmulatorEngine("smk37", true));
+  if (btnEditorEngine) btnEditorEngine.addEventListener("click", () => setEmulatorEngine("editor", true));
 
   if (!btnFlasher || !btnEditor || !viewFlasher || !viewEditor) return;
 
@@ -405,7 +387,9 @@ function initTopNavViews() {
       viewFlasher.style.display = "none";
       viewEditor.style.display = "flex";
       document.body.classList.add("mode-editor");
-      const targetSrc = currentEditorVersion === "1.4.2" ? "editor-v1.4.html" : "editor.html";
+      let targetSrc = "site/index.html";
+      if (currentEmulatorEngine === "smk37") targetSrc = "emu-smk37/index.html";
+      if (currentEmulatorEngine === "editor") targetSrc = "editor.html";
       if (editorFrame && (!editorFrame.src || editorFrame.src === "about:blank" || !editorFrame.src.endsWith(targetSrc))) {
         editorFrame.src = targetSrc;
       }
