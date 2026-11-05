@@ -1,0 +1,69 @@
+name: Build RemoteSMK Firmware
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar bzip2 xz-utils libraqm-dev libfreetype6-dev libharfbuzz-dev rsync
+          pip install pillow numpy
+
+      - name: Download JieLi Toolchain
+        run: |
+          chmod +x tools/get_toolchain.sh
+          tools/get_toolchain.sh "$HOME/.jieli"
+
+      - name: Checkout JieLi AC79 SDK tools
+        run: |
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          git clone --depth 1 --filter=blob:none --sparse --branch AC79NN_SDK_V1.2.1_2023-12-13 $SDK_URL sdk
+          git -C sdk sparse-checkout set cpu/wl82/tools
+
+      - name: Build RemoteSMK Pro (.fwsc)
+        run: |
+          export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
+          export AC79_SDK="$PWD/sdk"
+          BOARD=smk37 MODEL=pro ./build.sh
+
+      - name: Build RemoteSMK Elite (.fwsc)
+        run: |
+          export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
+          export AC79_SDK="$PWD/sdk"
+          BOARD=smk37 MODEL=elite ./build.sh
+
+      - name: Collect and Rename Firmware Packages
+        run: |
+          mkdir -p releases
+          cp firmware/build/*.fwsc releases/ || cp build/*.fwsc releases/ || true
+          ls -la releases/
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: remotesmk-firmware
+          path: |
+            releases/*.fwsc
+            firmware/build/*.fwsc

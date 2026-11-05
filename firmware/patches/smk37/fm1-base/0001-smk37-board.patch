@@ -446,11 +446,11 @@
 + *             (lit, the two steady levels, the mid level, the glow), in the warm white of the FM-1's key LEDs
 + *   the rest  the pitch wheel -8192..8191, the mod wheel 0..127, the pedal down / up: changes */
 +
-+static const uint8_t SMK_BTN_OF_LABEL[NB] = {                /* plat.h's B_* -> the SMK's button */
-+    SMK_B_ARP, SMK_B_NOTE_REPEAT, SMK_B_SCALE, SMK_B_CHORD, SMK_B_GLOBE, SMK_B_BT, SMK_B_PATCH, SMK_B_PARA,
-+    SMK_B_FX, SMK_B_SEQ, SMK_B_PLAY, SMK_B_REC, SMK_B_OCT_DN, SMK_B_OCT_UP};
-+static const uint8_t SMK_ENC_OF_ROLE[NE] = {1, 2, 3, 4, 5, 6, 7};   /* EN_* -> K2..K8 (K1 is MASTER) */
-+#define SMK_ENC_MASTER 0u
++static uint8_t SMK_BTN_OF_LABEL[NB] = {                /* plat.h's B_* -> the SMK's button (RemoteSMK Semantic) */
++    SMK_B_FX, SMK_B_NOTE_REPEAT, SMK_B_SCALE, SMK_B_CHORD, SMK_B_PARA, SMK_B_GLOBE, SMK_B_PATCH, SMK_B_BT,
++    SMK_B_ARP, SMK_B_SEQ, SMK_B_PLAY, SMK_B_REC, SMK_B_OCT_DN, SMK_B_OCT_UP};
++static uint8_t SMK_ENC_OF_ROLE[NE] = {4, 5, 6, 0, 1, 2, 3};   /* EN_* -> K5..K7, K1..K4 (K8 is MASTER) */
++#define SMK_ENC_MASTER 7u
 +#define SMK_MASTER_STEP 96                                    /* MASTER's position (0..4096) a detent of K1 */
 +static const uint8_t SMK_WHITE_K[16] = PLAT_WHITE_KEYS;       /* white key w (= the pad in reading order) -> key */
 +static const uint8_t SMK_EXTRA_BTN[2] = {SMK_B_KNOB_BANK, SMK_B_FADER_BANK};
