@@ -363,6 +363,26 @@ function setEmulatorEngine(engine, userInitiated = false) {
   }
 }
 
+async function detectFirmwareVersion(link, timeoutMs = 700) {
+  if (!link) return null;
+  link.drain();
+  // CMD.INFO SysEx: F0 7D 46 4C 01 F7
+  if (!link.send([0xF0, 0x7D, 0x46, 0x4C, 0x01, 0xF7])) return null;
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    const pkt = await link.read(end - Date.now());
+    if (!pkt || pkt.length < 6) continue;
+    if (pkt[0] === 0xF0 && pkt[1] === 0x7D && pkt[2] === 0x46 && pkt[3] === 0x4C && pkt[4] === 0x01) {
+      let s = "";
+      for (let i = 5; i < pkt.length - 1 && pkt[i] !== 0; i++) {
+        s += String.fromCharCode(pkt[i]);
+      }
+      return s;
+    }
+  }
+  return null;
+}
+
 function initTopNavViews() {
   const btnFlasher = $("btn-view-flasher");
   const btnEditor = $("btn-view-editor");
@@ -1483,7 +1503,16 @@ async function scanMidiDevices(silent = false) {
 
     const fwVer = await detectFirmwareVersion(dev.link);
     const editorPill = $("editor-detected-pill");
-    if (fwVer && /1\.6\./.test(fwVer)) {
+    if (dev.id && dev.id.text && /Remote/i.test(dev.id.text)) {
+      detectedHardwareFw = "remotesmk";
+      selectFirmware("remotesmk");
+      setMidiStatusPill("ok", `RemoteSMK (${dev.name})`);
+      if (editorPill) {
+        editorPill.className = "editor-ver-pill";
+        editorPill.textContent = `KEYBOARD // ${dev.id.text}`;
+      }
+      installLog(`Keyboard running RemoteSMK: "${dev.id.text}"`, "success");
+    } else if (fwVer && /1\.6\./.test(fwVer)) {
       detectedHardwareFw = "1.6.1";
       setEditorVersion("1.6.1");
       selectFirmware("smkdee");
