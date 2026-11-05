@@ -17,8 +17,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Checkout required submodules
+        run: |
+          git submodule update --init base
+          git -C base submodule update --init bsp
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,11 +40,10 @@ jobs:
           chmod +x tools/get_toolchain.sh
           tools/get_toolchain.sh "$HOME/.jieli"
 
-      - name: Checkout JieLi AC79 SDK tools
+      - name: Checkout JieLi AC79 SDK
         run: |
           SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
-          git clone --depth 1 --filter=blob:none --sparse --branch AC79NN_SDK_V1.2.1_2023-12-13 $SDK_URL sdk
-          git -C sdk sparse-checkout set cpu/wl82/tools
+          git clone --depth 1 $SDK_URL sdk
 
       - name: Build RemoteSMK Pro (.fwsc)
         run: |
