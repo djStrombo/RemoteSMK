@@ -1,0 +1,10 @@
+--- a/ble/shim/systimer.c
++++ b/ble/shim/systimer.c
+@@ -84,6 +84,7 @@
+ void sys_timer_del(u16 id) { stimer_t *t = get(id); if (t) t->used = 0; }
+ void sys_timeout_del(u16 id) { sys_timer_del(id); }
+ void usr_timer_del(u16 id) { sys_timer_del(id); }
++__attribute__((weak)) void usr_timeout_del(u16 id) { sys_timer_del(id); }
+ int sys_timer_modify(u16 id, u32 msec)
+ {
+     stimer_t *t = get(id);
