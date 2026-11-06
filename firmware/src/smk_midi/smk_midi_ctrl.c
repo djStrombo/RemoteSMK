@@ -3,7 +3,7 @@
 #pragma once
 #include "smk_midi_types.h"
 
-smk_midi_state_t smk_m;
+smk_midi_state_t smk_m PLAT_POOL;
 
 /* Default CC assignments */
 static const uint8_t SMK_DEF_KNOB_CC[16] = {
