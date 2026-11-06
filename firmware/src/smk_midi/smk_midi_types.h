@@ -125,5 +125,6 @@ void smk_midi_handle_encoder(int role, int32_t delta);
 void smk_midi_handle_fader(uint32_t id, uint32_t val);
 void smk_midi_handle_pad(uint32_t id, uint32_t val);
 void smk_midi_handle_bank_btn(int btn_id);
+void smk_midi_handle_buttons(uint32_t buttons);
 void smk_midi_step_ms(void);
 void smk_midi_paint(void);

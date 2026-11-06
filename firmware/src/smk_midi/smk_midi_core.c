@@ -50,6 +50,8 @@ void smk_midi_toggle_mode(void)
         smk_set_toast("MIDI CONTROLLER MODE");
     } else {
         smk_session_suspended = 0;
+        smk_midi_send_cc(smk_m.master_ch - 1u, 123, 0); /* All Notes Off */
+        smk_arp_clear_held();
         smk_set_toast("EMULATOR / SYNTH RESTORED");
     }
 }
@@ -83,8 +85,10 @@ void smk_midi_handle_key_down(uint32_t key, uint32_t vel)
 {
     uint8_t chord_notes[CHORD_MAX];
     uint32_t count, i;
-    uint32_t base_note = 48u + key + (uint32_t)((smk_m.octave + 1) * 12);
-    if (base_note > 127u) base_note = 127u;
+    int note = 48 + (int)key + ((int)smk_m.octave * 12);
+    if (note < 0) note = 0;
+    if (note > 127) note = 127;
+    uint32_t base_note = (uint32_t)note;
 
     /* Scale quantization */
     uint32_t snapped = smk_scale_snap_note(base_note, smk_m.root, (uint32_t)smk_m.scale);
@@ -108,8 +112,10 @@ void smk_midi_handle_key_up(uint32_t key)
 {
     uint8_t chord_notes[CHORD_MAX];
     uint32_t count, i;
-    uint32_t base_note = 48u + key + (uint32_t)((smk_m.octave + 1) * 12);
-    if (base_note > 127u) base_note = 127u;
+    int note = 48 + (int)key + ((int)smk_m.octave * 12);
+    if (note < 0) note = 0;
+    if (note > 127) note = 127;
+    uint32_t base_note = (uint32_t)note;
     uint32_t snapped = smk_scale_snap_note(base_note, smk_m.root, (uint32_t)smk_m.scale);
     count = smk_chord_build(snapped, chord_notes);
 
@@ -299,6 +305,52 @@ void smk_midi_handle_bank_btn(int btn_id)
         buf[11] = (char)('1' + smk_m.fader_bank);
         buf[12] = 0;
         smk_set_toast(buf);
+    }
+}
+
+/* Hardware buttons handler in Dedicated MIDI Mode */
+void smk_midi_handle_buttons(uint32_t buttons)
+{
+    static uint32_t prev_btns = 0;
+    uint32_t pressed = buttons & ~prev_btns;
+    prev_btns = buttons;
+
+    if (!pressed || !smk_m.active) return;
+
+    if (pressed & (1u << 0)) { /* B_FX / SCALE on SMK-37 */
+        if (smk_m.page == SMK_PAGE_SCL) {
+            smk_m.page = SMK_PAGE_CHORD;
+            smk_set_toast("CHORD VIEW");
+        } else {
+            smk_m.page = SMK_PAGE_SCL;
+            smk_set_toast("SCALE VIEW");
+        }
+    } else if (pressed & (1u << 8)) { /* B_ARP on SMK-37 */
+        smk_m.page = SMK_PAGE_ARP;
+        smk_set_toast("ARPEGGIATOR VIEW");
+    } else if (pressed & (1u << 9)) { /* B_SEQ on SMK-37 */
+        if (smk_m.page == SMK_PAGE_SEQ) {
+            smk_m.page = SMK_PAGE_SONG;
+            smk_set_toast("SONG VIEW");
+        } else {
+            smk_m.page = SMK_PAGE_SEQ;
+            smk_set_toast("SEQUENCER VIEW");
+        }
+    } else if (pressed & ((1u << 1) | (1u << 4) | (1u << 6))) { /* B_SEL, B_EDIT, B_HOME -> CC Mapper */
+        smk_m.page = SMK_PAGE_CC;
+        smk_set_toast("CC MAPPER VIEW");
+    } else if (pressed & (1u << 12)) { /* B_OCTDN (single tap) */
+        if (smk_m.octave > -3) smk_m.octave--;
+        smk_set_toast("OCTAVE -");
+    } else if (pressed & (1u << 13)) { /* B_OCTUP (single tap) */
+        if (smk_m.octave < 3) smk_m.octave++;
+        smk_set_toast("OCTAVE +");
+    } else if (pressed & (1u << 10)) { /* B_PLAY */
+        smk_m.seq_playing = !smk_m.seq_playing;
+        smk_set_toast(smk_m.seq_playing ? "SEQ PLAY" : "SEQ STOP");
+    } else if (pressed & (1u << 11)) { /* B_REC */
+        smk_m.seq_rec = !smk_m.seq_rec;
+        smk_set_toast(smk_m.seq_rec ? "SEQ REC ON" : "SEQ REC OFF");
     }
 }
 

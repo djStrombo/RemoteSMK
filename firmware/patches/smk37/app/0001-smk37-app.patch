@@ -1,7 +1,6 @@
-diff --git a/app.h b/app.h
-index ef4e4a8..47727e2 100644
---- a/app.h
-+++ b/app.h
+diff -ruN fw_orig/app.h fw_work/app.h
+--- a/app.h	2026-11-05 00:23:17.000000000 +0100
++++ b/app.h	2026-11-06 13:33:49.000000000 +0100
 @@ -12,6 +12,12 @@
  #define APP_PALETTE 2u                   /* gfx.c's CYAN */
  #define APP_BLOCK 256u                   /* the standalone DX7 (sa/sa_main.c sa_render): 8 of FM6's 32-frame blocks */
@@ -54,11 +53,10 @@ index ef4e4a8..47727e2 100644
  #define APP_STORE_MUX
  #define APP_STORE_VIRTUAL(obj) ((obj) == OBJ_BLE || (obj) == OBJ_SA)   /* records in OBJ_RF */
  int plat_store_raw_load(uint32_t obj, void *dst, uint32_t max);   /* (fm1-base's, under APP_STORE_MUX) */
-diff --git a/sa/sa_main.c b/sa/sa_main.c
-index 57717f9..052eb45 100644
---- a/sa/sa_main.c
-+++ b/sa/sa_main.c
-@@ -62,6 +62,11 @@ static void rf_sa_leds(uint32_t btns, uint32_t keys, uint32_t keys_root, uint32_
+diff -ruN fw_orig/sa/sa_main.c fw_work/sa/sa_main.c
+--- a/sa/sa_main.c	2026-11-05 00:23:17.000000000 +0100
++++ b/sa/sa_main.c	2026-11-06 13:34:39.000000000 +0100
+@@ -62,6 +62,11 @@
                                                * a scale's root (75 %), its notes (40 %) */
  
  #define SA_NOTE0 53u                         /* key 0 at octave 0: F3 */
@@ -70,7 +68,7 @@ index 57717f9..052eb45 100644
  #define SA_HOST_MS 3000u                     /* a HELLO without a session: panel mode this long after its last message */
  #define SA_OVERLAY_MS 1000u
  #define SA_LED_REFRESH_MS 500u                /* the LEDs written again this often, changed or not */
-@@ -125,8 +130,11 @@ static struct {
+@@ -125,8 +130,11 @@
      char name[12];                           /* the voice's */
      uint32_t keys;                           /* keys held (as played: lib/touch) */
      uint32_t btns;                           /* buttons held (plat.h's B_*) */
@@ -84,7 +82,7 @@ index 57717f9..052eb45 100644
      uint8_t held[128];                       /* the notes sounding from the keys and MIDI in, counted: the screen */
      uint8_t latch;                           /* LATCH (LFO held): the keys' notes held after they are let go */
      uint8_t rm_disp, rm_rel, rm_cc_ch, rm_key_ch, rm_keys, rm_octk;   /* the settings (SA_RMD_*, SA_RMR_*, 1..16,
-@@ -239,6 +247,14 @@ static void sa_render(int32_t *lr, uint32_t n, uint32_t gain_q12)
+@@ -239,6 +247,14 @@
      const float pg = SA_PART_GAIN / 8388608.0f, mg = (float)gain_q12 * (8388607.0f / 4096.0f);
      float peak_out = 0.0f;
      uint32_t k, i;
@@ -99,7 +97,7 @@ index 57717f9..052eb45 100644
      if (sa_bench_busy() || n > APP_BLOCK) {
          sa_ev_r = sa_ev_w;                   /* (the bench has the synth) */
          for (i = 0; i < 2u * n; i++)
-@@ -331,14 +347,31 @@ static void sa_latch_release(void)           /* every latched note let go */
+@@ -331,14 +347,32 @@
      sa.lat_n = 0;
  }
  
@@ -115,10 +113,11 @@ index 57717f9..052eb45 100644
  {
 +#if BOARD_SMK37
 +    if (smk_m.active) {
++        uint32_t phys_key = (uint32_t)(sa_key_off(k) + 5);
 +        if (vel)
-+            smk_midi_handle_key_down(k, vel);
++            smk_midi_handle_key_down(phys_key, vel);
 +        else
-+            smk_midi_handle_key_up(k);
++            smk_midi_handle_key_up(phys_key);
 +        return;
 +    }
 +#endif
@@ -133,7 +132,7 @@ index 57717f9..052eb45 100644
                  sa_latch_release();
              } else {
                  uint32_t i, j;
-@@ -402,6 +435,12 @@ static void sa_all_off(int now)
+@@ -402,6 +436,12 @@
      for (k = 0; k < NKEYS; k++)
          if (sa.keys >> k & 1u)
              sa_key(k, 0);
@@ -146,7 +145,49 @@ index 57717f9..052eb45 100644
      sa_latch_release();
      sa_remote_off_all();
      for (k = 0; k < 128u; k++)
-@@ -1288,7 +1327,7 @@ static void sa_init(void)
+@@ -1214,7 +1254,11 @@
+             }
+         }
+     }
++#if BOARD_SMK37
++    if (sa.panel && !smk_session_suspended) {
++#else
+     if (sa.panel) {
++#endif
+         if (!rf_session_on() && now - sa.host_ms >= SA_HOST_MS)
+             sa_leave_panel();                /* a HELLO and nothing since */
+         return;
+@@ -1234,6 +1278,12 @@
+     for (ch = keys ^ sa.keys, k = 0; ch; ch >>= 1, k++) {
+         if (!(ch & 1u))
+             continue;
++#if BOARD_SMK37
++        if (smk_session_suspended) {
++            sa_key(k, (keys >> k & 1u) ? sa_key_vel(k) : 0u);
++            continue;
++        }
++#endif
+         if ((keys >> k & 1u) && (btns >> B_GLO & 1u) && sa_key_black(k) >= 0) {   /* GLO + a black key: the octave */
+             int8_t o = (int8_t)sa_black_oct((uint32_t)sa_key_black(k));
+             if (o != sa.oct) {
+@@ -1261,10 +1311,16 @@
+         sa_key(k, (keys >> k & 1u) ? sa_key_vel(k) : 0u);
+     }
+     sa.keys = keys;
++#if BOARD_SMK37
++    if (!smk_session_suspended) {
++#endif
+     sa_buttons(btns & ((1u << NB) - 1u));
+     sa_encoders(steps);
+     sar_ms(now);
+     sl_step(now);
++#if BOARD_SMK37
++    }
++#endif
+     if (sa.ov != sa.base && (int32_t)(now - sa.ov_until) >= 0) {
+         sa.ov = sa.base;                     /* a passing screen: back to the one under it (a menu, CC-Bank, HOME) */
+         sa.poke = 1;
+@@ -1288,7 +1344,7 @@
      sl_init();
      sl_store_load();                         /* the loops kept (SAVE held) */
      sar_init();
@@ -155,7 +196,7 @@ index 57717f9..052eb45 100644
          sa.key_note[k] = 0xFFu;
      sa.led_b = sa.led_k = 0xFFFFFFFFu;
      sa_load();
-@@ -1296,6 +1335,10 @@ static void sa_init(void)
+@@ -1296,6 +1352,10 @@
      sa_load_voice();
      sa.bench_was = (uint8_t)sa_bench_busy();
      sa.poke = 1;
@@ -166,7 +207,7 @@ index 57717f9..052eb45 100644
  }
  
  static void sa_ui_init(void)                 /* (app_ui_init: the platform is up) the keys' sensing on, standalone */
-@@ -1304,4 +1347,8 @@ static void sa_ui_init(void)                 /* (app_ui_init: the platform is up
+@@ -1304,4 +1364,8 @@
          touch_on(1);
  }
  
@@ -175,11 +216,10 @@ index 57717f9..052eb45 100644
 +#include "sa_smk.c"                          /* the M-Vave SMK-37's outer keys, wheels, pedal and extra buttons */
 +#endif
  #include "sa_ui.c"
-diff --git a/sa/sa_remote.c b/sa/sa_remote.c
-index 23ba07e..fc95c49 100644
---- a/sa/sa_remote.c
-+++ b/sa/sa_remote.c
-@@ -111,13 +111,13 @@ static void sa_rm_exit(int send)             /* send: 0 for the buttons held, th
+diff -ruN fw_orig/sa/sa_remote.c fw_work/sa/sa_remote.c
+--- a/sa/sa_remote.c	2026-11-05 00:23:17.000000000 +0100
++++ b/sa/sa_remote.c	2026-11-06 13:33:49.000000000 +0100
+@@ -111,13 +111,13 @@
          for (b = 0; b < NB; b++)
              if (((sa.btns & ~rm.mute) >> b & 1u) && sa_rm_btn_cc(b))
                  sa_midi3(0xB0u | SA_RM_CC_CH(), SA_RM_BTN_CC[b], 0);
@@ -195,12 +235,10 @@ index 23ba07e..fc95c49 100644
          sa.key_note[k] = 0xFFu;
      rm.on = 0;
      sa.led_b = sa.led_k = 0xFFFFFFFFu;
-diff --git a/sa/sa_smk.c b/sa/sa_smk.c
-new file mode 100644
-index 0000000..8051c08
---- /dev/null
-+++ b/sa/sa_smk.c
-@@ -0,0 +1,137 @@
+diff -ruN fw_orig/sa/sa_smk.c fw_work/sa/sa_smk.c
+--- a/sa/sa_smk.c	1970-01-01 01:00:00.000000000 +0100
++++ b/sa/sa_smk.c	2026-11-06 13:34:49.000000000 +0100
+@@ -0,0 +1,149 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* The M-Vave SMK-37's controls the FM-1 has not (docs/SMK37.md; fm1-base's plat_smk_take, BOARD_SMK37), standalone:
@@ -227,6 +265,12 @@ index 0000000..8051c08
 +
 +static void sa_smk_cc(uint32_t cc, uint32_t v)
 +{
++#if BOARD_SMK37
++    if (smk_m.active) {
++        smk_midi_send_cc(smk_m.master_ch - 1u, cc, v);
++        return;
++    }
++#endif
 +    if (rm.on)
 +        sa_rm_send(0xB0u | SA_RM_CC_CH(), cc, v, SA_RM_SRC_BTN, 0);
 +    else
@@ -323,6 +367,12 @@ index 0000000..8051c08
 +    }
 +    case PLAT_SMK_BEND: {
 +        uint32_t b = (uint32_t)(e->v + 8192);
++#if BOARD_SMK37
++        if (smk_m.active) {
++            sa_midi3(0xE0u | ((smk_m.master_ch - 1u) & 0x0Fu), b & 0x7Fu, b >> 7);
++            return;
++        }
++#endif
 +        if (rm.on) {
 +            sa_rm_send(0xE0u | SA_RM_CC_CH(), b & 0x7Fu, b >> 7, SA_RM_SRC_BTN, 0);
 +            return;
@@ -338,10 +388,9 @@ index 0000000..8051c08
 +    default: return;
 +    }
 +}
-diff --git a/sa/sa_store.c b/sa/sa_store.c
-index 8b085c3..d2c18fb 100644
---- a/sa/sa_store.c
-+++ b/sa/sa_store.c
+diff -ruN fw_orig/sa/sa_store.c fw_work/sa/sa_store.c
+--- a/sa/sa_store.c	2026-11-05 00:23:17.000000000 +0100
++++ b/sa/sa_store.c	2026-11-06 13:33:49.000000000 +0100
 @@ -25,8 +25,17 @@
   * APP_STORE_OK (tests/store_window_test.c, tests/run_tests.sh). */
  
@@ -360,7 +409,7 @@ index 8b085c3..d2c18fb 100644
  #define SF_MAGIC 0x31444652u                 /* "RFD1" */
  #define SF_UB 16u                            /* user banks */
  #define SF_NL 16u                            /* loops (sa_loop.c SA_LOOPS) */
-@@ -131,7 +140,11 @@ static int sf_write(uint32_t off, const void *src, uint32_t n)
+@@ -131,7 +140,11 @@
      return plat_data_write(off, src, n);
  }
  
@@ -372,11 +421,10 @@ index 8b085c3..d2c18fb 100644
  
  static int sf_dir_ok(const sf_dir_t *d)
  {
-diff --git a/sa/sa_ui.c b/sa/sa_ui.c
-index 9cfa484..5af2100 100644
---- a/sa/sa_ui.c
-+++ b/sa/sa_ui.c
-@@ -413,5 +413,18 @@ static void sa_frame(void)
+diff -ruN fw_orig/sa/sa_ui.c fw_work/sa/sa_ui.c
+--- a/sa/sa_ui.c	2026-11-05 00:23:17.000000000 +0100
++++ b/sa/sa_ui.c	2026-11-06 13:33:49.000000000 +0100
+@@ -413,5 +413,18 @@
          sa_ui_snap();
          sg_start();
      }
@@ -395,11 +443,10 @@ index 9cfa484..5af2100 100644
 +#endif
      sg_step(sa_paint, 4u, ui.c[SA_TK_BG]);
  }
-diff --git a/src/rfm_app.c b/src/rfm_app.c
-index 6f17f71..1234567 100644
---- a/src/rfm_app.c
-+++ b/src/rfm_app.c
-@@ -483,6 +483,12 @@ static void rfm_app_poll(uint32_t now_ms)
+diff -ruN fw_orig/src/rfm_app.c fw_work/src/rfm_app.c
+--- a/src/rfm_app.c	2026-11-05 00:23:17.000000000 +0100
++++ b/src/rfm_app.c	2026-11-06 13:33:49.000000000 +0100
+@@ -483,6 +483,12 @@
      if (rfa.session && rfa.keepalive && now_ms - rfa.last_rx >= rfa.keepalive)
          rfa_session_end();
      if (rfa.push.active) {
@@ -412,24 +459,23 @@ index 6f17f71..1234567 100644
          if (!rfm_push_step(&rfa.push))
              rfa_push_done();
      }
-@@ -497,13 +503,21 @@ static void rfm_app_poll(uint32_t now_ms)
+@@ -497,13 +503,21 @@
          rfa.hold_timeouts++;
      }
      if (!rfa.push.active && ((rfa.session && rfa.qn) || (rfa.flush && rfm_push_pending(&rfa.push)))) {
-+#if BOARD_SMK37
-+        if (smk_session_suspended) {
-+            rfa.covered = rfa.qn;
-+            rfa_push_done();
-+        } else
-+#endif
-+        {
 -        rfa.flush = 0;
 -        rfa.held = 0;                                   /* the push takes every tile drawn so far */
 -        rfa.covered = rfa.qn;
 -        rfa.push_t0 = rfa_us();
 -        rfm_push_start(&rfa.push);
 -        if (!rfm_push_step(&rfa.push))
--            rfa_push_done();
++#if BOARD_SMK37
++        if (smk_session_suspended) {
++            rfa.covered = rfa.qn;
+             rfa_push_done();
++        } else
++#endif
++        {
 +            rfa.flush = 0;
 +            rfa.held = 0;                                   /* the push takes every tile drawn so far */
 +            rfa.covered = rfa.qn;
@@ -441,12 +487,10 @@ index 6f17f71..1234567 100644
      }
      if (rfa.session && now_ms - rfa.panel_ms >= RFA_PANEL_MS)
          rfa_panel_r(rfa.st);
- }
-diff --git a/src/rfm_host.c b/src/rfm_host.c
-index 4e29f07..e6e676e 100644
---- a/src/rfm_host.c
-+++ b/src/rfm_host.c
-@@ -606,6 +606,25 @@ int app_host_cmd(const char *cmd, const char *a, const char *b, const char *c, c
+diff -ruN fw_orig/src/rfm_host.c fw_work/src/rfm_host.c
+--- a/src/rfm_host.c	2026-11-05 00:23:17.000000000 +0100
++++ b/src/rfm_host.c	2026-11-06 13:33:49.000000000 +0100
+@@ -606,6 +606,25 @@
          hb_run();
          return 1;
      }
@@ -472,7 +516,7 @@ index 4e29f07..e6e676e 100644
      if (t < 0) {
          printf("rf %s: a transport (usb, bk, ble)\n", a);
          exit(2);
-@@ -780,8 +799,10 @@ int app_expect(const char *what, int *got)
+@@ -780,8 +799,10 @@
      else if (!strcmp(what, "rf_hello_sxq"))
          *got = (int)rf_rd16(hs_hello + 29);
      else if (!strcmp(what, "rf_hello_ident"))
@@ -484,10 +528,9 @@ index 4e29f07..e6e676e 100644
      else if (!strcmp(what, "rf_panel_flags"))
          *got = hs_panel[RFM_PANEL_FLAGS];
      else if (!strcmp(what, "rf_panel_keys"))
-diff --git a/src/rfm_main.c b/src/rfm_main.c
-index 58751cd..ae36411 100644
---- a/src/rfm_main.c
-+++ b/src/rfm_main.c
+diff -ruN fw_orig/src/rfm_main.c fw_work/src/rfm_main.c
+--- a/src/rfm_main.c	2026-11-05 00:23:17.000000000 +0100
++++ b/src/rfm_main.c	2026-11-06 13:34:49.000000000 +0100
 @@ -56,7 +56,16 @@
  #define FELUCCA_ID "FM-1_5200"              /* (the host simulator; tools/build.py gives the FM-1's build its own) */
  #endif
@@ -505,7 +548,7 @@ index 58751cd..ae36411 100644
  #if RFM_SHADOW
  #define RFA_CAPS (RFM_CAP_SHADOW | RFM_CAP_COPY | RFM_CAP_RLE | RFM_CAP_PAL | RFM_CAP_PLAY_GREEN | RFM_CAP_HOLD | \
                    RFM_CAP_BLE_FAST | RFM_CAP_MIDI_IN | RFM_CAP_TOUCH)  /* (the radio's settings: fm1.toml ble_dle, ble_2m, ble_rx_bufs) */
-@@ -84,9 +93,10 @@ static void rp_wdt(void);                           /* the watchdog fed (inside
+@@ -84,9 +93,10 @@
  static uint32_t rp_bk_rx_n(void), rp_bk_tx_n(void); /* the vendor rings' sizes (HELLO_R) */
  enum { RC_RESETS, RC_SETUPS, RC_EP1_RX, RC_EP1_TX, RC_EP3_RX, RC_EP3_TX, RC_EP3_HELD, RC_LCD_TIMEOUTS, RC_N };
  static void rp_counters(uint32_t *c);               /* USB's and the panel's counters (STATS_R) */
@@ -518,7 +561,19 @@ index 58751cd..ae36411 100644
  static const int8_t RF_KEYMAP[6][RFM_NCOL] = {
      {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}, {5, 11, 4, 10, 3, 9, 2, 8, -1, -1, -1},
      {34, 35, 36, 37, 38, 40, 39, 13, 7, 6, 12},   {23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33},
-@@ -580,6 +590,10 @@ static void rfa_touch_changed(uint32_t flags) { sa_panel_touch(flags != 0u); }
+@@ -434,7 +444,11 @@
+ static void rf_ev_flush(void)
+ {
+     uint32_t to;
++#if BOARD_SMK37
++    if (rfa.session && !smk_session_suspended)
++#else
+     if (rfa.session)
++#endif
+         to = rfa.st == RF_T_BLE ? (plat_ble_connected() ? TO_BLE_HOST : 0u) : (rp_usb_cfg() ? TO_USB : 0u);
+     else
+         to = (rp_usb_cfg() ? TO_USB : 0u) | (plat_ble_connected() ? TO_BLE_HOST : 0u);
+@@ -580,6 +594,10 @@
   * bench); after somebody else drew on it, all of it again */
  static int rf_panel_ours(void)
  {
@@ -529,7 +584,7 @@ index 58751cd..ae36411 100644
      if (rfa.session || rfm_app_pushing() || (int32_t)(plat_ms() - rf_scr_hold) < 0)
          return 0;
      if (rf_scr_full) {
-@@ -595,7 +609,10 @@ static void rfa_hello_dev(uint8_t *h, uint32_t t)
+@@ -595,7 +613,10 @@
      h[25] = (uint8_t)((rp_usb_cfg() ? 1u : 0u) | 2u | (uint32_t)(rf_heard & 3u) << 2 |
                        (plat_ble_connected() ? 0x10u : 0u) | (rf_heard & 4u ? 0x20u : 0u));
      h[26] = 1;                                      /* the main loop polls USB */
@@ -541,7 +596,7 @@ index 58751cd..ae36411 100644
      h[27] = LCD_BAUD;
  #else
      h[27] = 0;
-@@ -1068,6 +1085,65 @@ static void rf_rx_step(void)
+@@ -1068,6 +1089,65 @@
          rfm_app_activity();                         /* (SINK too: the keepalive counts every byte) */
  }
  
@@ -607,7 +662,7 @@ index 58751cd..ae36411 100644
  /* ------------------------------------------------------------------ the panel, once a millisecond --- */
  static uint32_t rf_usb_resets_seen;
  static uint8_t rf_ble_was;
-@@ -1084,6 +1160,32 @@ static void rf_ms_step(void)
+@@ -1084,6 +1164,33 @@
          steps[RF_ENC_OF_ROLE[e]] += roles[e];
      }
      sa_ms(lb, roles);                               /* standalone: the instrument; panel mode: its timeout */
@@ -631,6 +686,7 @@ index 58751cd..ae36411 100644
 +    }
 +    smk_midi_step_ms();
 +    if (smk_m.active) {
++        smk_midi_handle_buttons(lb);
 +        for (e = 0; e < NE; e++) {
 +            if (roles[e]) smk_midi_handle_encoder((int)e, roles[e]);
 +        }
@@ -640,7 +696,7 @@ index 58751cd..ae36411 100644
      {
          uint8_t ab[3];
          uint32_t at;
-@@ -1111,6 +1213,9 @@ static void rf_ms_step(void)
+@@ -1111,6 +1218,9 @@
          }
          touch = 1;
      }
