@@ -290,7 +290,7 @@ static void smk_ui_draw_chord(void)
             smk_m.edit_subfield == 1 ? CLR_ACC3 : CLR_ACC4);
     sg_text(20, 158, 1, "Triggered on every played key", CLR_DIM);
 
-    smk_ui_draw_param_bar("TYPE", "VOIC", "ROOT", NULL, smk_m.edit_subfield);
+    smk_ui_draw_param_bar("TYPE", "VOIC", "ROOT", 0, smk_m.edit_subfield);
 }
 
 /* Page 3: Arpeggiator View */

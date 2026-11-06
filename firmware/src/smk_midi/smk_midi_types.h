@@ -2,6 +2,7 @@
  * Copyright (C) 2026 RemoteSMK contributors */
 #pragma once
 #include <stdint.h>
+#include <stddef.h>
 #include "plat.h"
 
 #define SMK_MIDI_NSTEPS 64u
