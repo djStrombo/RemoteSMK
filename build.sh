@@ -32,6 +32,7 @@ done
                                                         # --host: the simulator with the bench at boot)
 export JIELI_TOOLCHAIN="${JIELI_TOOLCHAIN:-$HOME/.jieli/toolchain}"
 export AC79_SDK="${AC79_SDK:-$HOME/fw-AC79_AIoT_SDK}"
+export FM1B_POOL_SPARE="${FM1B_POOL_SPARE:-512}"
 if [ -z "${DYLD_LIBRARY_PATH:-}${DYLD_FALLBACK_LIBRARY_PATH:-}" ] && [ -d /opt/homebrew/lib ]; then
     # Homebrew's libraqm for Pillow, as a fallback only: Pillow keeps its own FreeType and HarfBuzz (Homebrew's newer
     # FreeType draws the fonts' edges differently, so a build would depend on the Mac's Homebrew; with Pillow's own,

@@ -49,12 +49,14 @@ jobs:
         run: |
           export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
           export AC79_SDK="$PWD/sdk"
+          export FM1B_POOL_SPARE=512
           BOARD=smk37 MODEL=pro ./build.sh
 
       - name: Build RemoteSMK Elite (.fwsc)
         run: |
           export JIELI_TOOLCHAIN="$HOME/.jieli/toolchain"
           export AC79_SDK="$PWD/sdk"
+          export FM1B_POOL_SPARE=512
           BOARD=smk37 MODEL=elite ./build.sh
 
       - name: Collect and Rename Firmware Packages
