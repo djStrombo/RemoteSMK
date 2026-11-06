@@ -27,7 +27,7 @@ void smk_midi_ctrl_init(void)
 {
     uint32_t i;
     smk_m.active = 0;
-    smk_m.page = SMK_PAGE_SCL;
+    smk_m.page = SMK_PAGE_LIVE;
     smk_m.knob_bank = 0;
     smk_m.fader_bank = 0;
     smk_m.pad_bank = 0;
@@ -63,18 +63,31 @@ void smk_midi_ctrl_init(void)
     smk_m.total_song_rows = 16;
     smk_m.cc_edit_target = 0;
     smk_m.cc_edit_index = 0;
+    smk_m.edit_subfield = 0;
+    smk_m.last_note = 0;
+    smk_m.last_vel = 0;
+    smk_m.note_held_cnt = 0;
+    smk_m.last_chord_str[0] = 0;
+    smk_m.last_notes_str[0] = 0;
+    smk_m.hud_msg[0] = 0;
+    smk_m.hud_val = 0;
+    smk_m.hud_active = 0;
+    smk_m.hud_ms = 0;
 
     for (i = 0; i < SMK_MAX_KNOBS; i++) {
         smk_m.knob_cc[i] = i < 16 ? SMK_DEF_KNOB_CC[i] : (uint8_t)(30 + (i - 16));
         smk_m.knob_ch[i] = 1;
+        smk_m.knob_val[i] = 64;
     }
     for (i = 0; i < SMK_MAX_FADERS; i++) {
         smk_m.fader_cc[i] = i < 8 ? SMK_DEF_FADER_CC[i] : (uint8_t)(80 + (i - 8));
         smk_m.fader_ch[i] = 1;
+        smk_m.fader_val[i] = 0;
     }
     for (i = 0; i < SMK_MAX_PADS; i++) {
         smk_m.pad_cc[i] = i < 32 ? SMK_DEF_PAD_CC[i] : (uint8_t)(68 + (i - 32));
         smk_m.pad_ch[i] = 1;
+        smk_m.pad_val[i] = 0;
     }
 }
 

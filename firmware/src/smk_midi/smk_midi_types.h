@@ -10,6 +10,7 @@
 
 /* Page views in dedicated MIDI Controller mode */
 enum {
+    SMK_PAGE_LIVE = 0, /* Live Performance Screen (all controls active, note/chord display) */
     SMK_PAGE_SCL,      /* Scales selection & navigation */
     SMK_PAGE_CHORD,    /* Chord engine (DIA, MAJ, MIN, etc. & Voicings) */
     SMK_PAGE_ARP,      /* Arpeggiator (Mode, Rate, Octave, Gate, Swing) */
@@ -108,6 +109,27 @@ typedef struct {
     /* CC Mapper Editor Selection */
     uint8_t cc_edit_target;     /* 0: Knob, 1: Fader, 2: Pad */
     uint8_t cc_edit_index;      /* Index within target */
+
+    /* Subfield cursor for < > and OCT+/- navigation */
+    uint8_t edit_subfield;      /* 0..3 depending on page */
+
+    /* Live performance display state */
+    uint8_t last_note;
+    uint8_t last_vel;
+    uint8_t note_held_cnt;
+    char    last_chord_str[24];
+    char    last_notes_str[24];
+
+    /* HUD for control movement */
+    char    hud_msg[28];
+    uint8_t hud_val;            /* 0..127 for bar render */
+    uint8_t hud_active;         /* 1 if hud bar active */
+    uint8_t hud_ms;             /* timer ticks */
+
+    /* Live values */
+    uint8_t knob_val[SMK_MAX_KNOBS];
+    uint8_t fader_val[SMK_MAX_FADERS];
+    uint8_t pad_val[SMK_MAX_PADS];
 } smk_midi_state_t;
 
 extern smk_midi_state_t smk_m;
