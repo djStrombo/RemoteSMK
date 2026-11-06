@@ -376,17 +376,71 @@ diff --git a/sa/sa_ui.c b/sa/sa_ui.c
 index 9cfa484..5af2100 100644
 --- a/sa/sa_ui.c
 +++ b/sa/sa_ui.c
-@@ -413,5 +413,11 @@ static void sa_frame(void)
+@@ -413,5 +413,18 @@ static void sa_frame(void)
          sa_ui_snap();
          sg_start();
      }
 +#if BOARD_SMK37
++    static uint8_t smk_active_prev = 0;
++    if (smk_m.active != smk_active_prev) {
++        smk_active_prev = smk_m.active;
++        sg_abort();
++        sg_invalidate();
++        sa.poke = 1;
++    }
 +    if (smk_m.active) {
 +        sg_step(smk_midi_paint, 4u, 0x0000u);
 +        return;
 +    }
 +#endif
      sg_step(sa_paint, 4u, ui.c[SA_TK_BG]);
+ }
+diff --git a/src/rfm_app.c b/src/rfm_app.c
+index 6f17f71..1234567 100644
+--- a/src/rfm_app.c
++++ b/src/rfm_app.c
+@@ -483,6 +483,12 @@ static void rfm_app_poll(uint32_t now_ms)
+     if (rfa.session && rfa.keepalive && now_ms - rfa.last_rx >= rfa.keepalive)
+         rfa_session_end();
+     if (rfa.push.active) {
++#if BOARD_SMK37
++        if (smk_session_suspended) {
++            rfm_push_abort(&rfa.push);
++            rfa_push_done();
++        } else
++#endif
+         if (!rfm_push_step(&rfa.push))
+             rfa_push_done();
+     }
+@@ -497,13 +503,21 @@ static void rfm_app_poll(uint32_t now_ms)
+         rfa.hold_timeouts++;
+     }
+     if (!rfa.push.active && ((rfa.session && rfa.qn) || (rfa.flush && rfm_push_pending(&rfa.push)))) {
++#if BOARD_SMK37
++        if (smk_session_suspended) {
++            rfa.covered = rfa.qn;
++            rfa_push_done();
++        } else
++#endif
++        {
+-        rfa.flush = 0;
+-        rfa.held = 0;                                   /* the push takes every tile drawn so far */
+-        rfa.covered = rfa.qn;
+-        rfa.push_t0 = rfa_us();
+-        rfm_push_start(&rfa.push);
+-        if (!rfm_push_step(&rfa.push))
+-            rfa_push_done();
++            rfa.flush = 0;
++            rfa.held = 0;                                   /* the push takes every tile drawn so far */
++            rfa.covered = rfa.qn;
++            rfa.push_t0 = rfa_us();
++            rfm_push_start(&rfa.push);
++            if (!rfm_push_step(&rfa.push))
++                rfa_push_done();
++        }
+     }
+     if (rfa.session && now_ms - rfa.panel_ms >= RFA_PANEL_MS)
+         rfa_panel_r(rfa.st);
  }
 diff --git a/src/rfm_host.c b/src/rfm_host.c
 index 4e29f07..e6e676e 100644
@@ -553,11 +607,25 @@ index 58751cd..ae36411 100644
  /* ------------------------------------------------------------------ the panel, once a millisecond --- */
  static uint32_t rf_usb_resets_seen;
  static uint8_t rf_ble_was;
-@@ -1084,6 +1160,18 @@ static void rf_ms_step(void)
+@@ -1084,6 +1160,32 @@ static void rf_ms_step(void)
          steps[RF_ENC_OF_ROLE[e]] += roles[e];
      }
      sa_ms(lb, roles);                               /* standalone: the instrument; panel mode: its timeout */
 +#if BOARD_SMK37
++    static uint8_t smk_session_suspended_prev = 0;
++    if (smk_session_suspended != smk_session_suspended_prev) {
++        smk_session_suspended_prev = smk_session_suspended;
++        if (!smk_session_suspended) {
++            if (rfa.session) {
++                rfm_app_lcd_lost();
++            } else {
++                sa_ui_lost();
++            }
++        } else {
++            rfm_push_abort(&rfa.push);
++            rfa.flush = 0;
++        }
++    }
 +    if (smk_check_octave_hold(lb)) {
 +        lb &= ~((1u << 12) | (1u << 13));
 +    }
@@ -572,7 +640,7 @@ index 58751cd..ae36411 100644
      {
          uint8_t ab[3];
          uint32_t at;
-@@ -1111,6 +1199,9 @@ static void rf_ms_step(void)
+@@ -1111,6 +1213,9 @@ static void rf_ms_step(void)
          }
          touch = 1;
      }
