@@ -24,14 +24,14 @@ enum {
 #define SMK_MAX_FADERS  16u
 #define SMK_MAX_PADS    64u
 
-/* Sequencer step definition */
+/* Sequencer step definition: 8 bytes per step (1024 steps = 8 KiB) */
 typedef struct {
     uint8_t note[4];
-    uint8_t n;         /* Active notes count (0 = rest) */
+    uint8_t n:4;       /* Active notes count 0..4 (0 = rest) */
+    uint8_t flags:4;   /* Accent, slide */
     uint8_t vel;       /* Velocity 1..127 */
     uint8_t gate;      /* Gate length in 1..255 steps fraction */
     uint8_t prob;      /* Probability 0..100% */
-    uint8_t flags;     /* Accent, slide */
 } smk_seq_step_t;
 
 /* Song mode chain row */

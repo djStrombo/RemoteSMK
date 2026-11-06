@@ -28,7 +28,7 @@ typedef struct {
     uint32_t rnd_seed;
 } smk_arp_state_t;
 
-static smk_arp_state_t smk_arp PLAT_POOL;
+static smk_arp_state_t smk_arp;
 
 static inline uint32_t smk_arp_rng(void)
 {

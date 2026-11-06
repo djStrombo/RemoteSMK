@@ -4,7 +4,7 @@
 #include "smk_midi_types.h"
 
 smk_seq_step_t smk_patterns[SMK_MIDI_NPATS][SMK_MIDI_NSTEPS] PLAT_POOL;
-smk_song_row_t smk_song_chain[SMK_MIDI_NROWS] PLAT_POOL;
+smk_song_row_t smk_song_chain[SMK_MIDI_NROWS];
 
 void smk_seq_init_patterns(void)
 {
