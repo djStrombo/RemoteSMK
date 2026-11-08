@@ -5,8 +5,8 @@
 
 #define SMK_ARP_MAX_HELD 16u
 
-static const char *const SMK_ARP_MODE_NAMES[7] = {
-    "OFF", "UP", "DOWN", "UP/DOWN", "RANDOM", "AS PLAYED", "REPEAT"
+static const char *const SMK_ARP_MODE_NAMES[6] = {
+    "UP", "DOWN", "UP/DOWN", "RANDOM", "AS PLAYED", "REPEAT"
 };
 
 static const char *const SMK_ARP_RATE_NAMES[6] = {

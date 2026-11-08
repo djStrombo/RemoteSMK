@@ -5,22 +5,6 @@
 #include "smk_midi_scales.h"
 
 enum {
-    CH_OFF,
-    CH_DIA3,
-    CH_DIA7,
-    CH_MAJ,
-    CH_MIN,
-    CH_DOM7,
-    CH_MAJ7,
-    CH_MIN7,
-    CH_SUS4,
-    CH_POW,
-    CH_AUTO,
-    CH_MELODY,
-    CH_COUNT
-};
-
-enum {
     VC_CLOSE,
     VC_OPEN,
     VC_INV1,
@@ -31,36 +15,42 @@ enum {
 
 #define CHORD_MAX 4u
 
-static const char *const SMK_CHORD_NAMES[CH_COUNT] = {
-    "OFF", "DIA 3RD", "DIA 7TH", "MAJOR", "MINOR", "DOM 7", "MAJ 7", "MIN 7", "SUS 4", "POWER", "AUTO", "MELODY"
+static const char *const SMK_CHORD_NAMES[CH_TYPE_COUNT] = {
+    "MAJOR", "MINOR", "DOM 7TH", "MAJOR 7TH", "MINOR 7TH",
+    "DIMINISHED", "AUGMENTED", "SUS2", "SUS4", "9TH",
+    "DIATONIC 3RD", "DIATONIC 7TH"
 };
 
 static const char *const SMK_VOIC_NAMES[VC_COUNT] = {
     "CLOSE", "OPEN", "INV 1", "INV 2", "+OCT BASS"
 };
 
-static const int8_t SMK_CHORD_SHAPES[CH_POW - CH_MAJ + 1][CHORD_MAX] = {
+static const int8_t SMK_CHORD_SHAPES[10][CHORD_MAX] = {
     {0, 4, 7, -1},    /* MAJOR */
     {0, 3, 7, -1},    /* MINOR */
-    {0, 4, 7, 10},    /* DOM7 */
-    {0, 4, 7, 11},    /* MAJ7 */
-    {0, 3, 7, 10},    /* MIN7 */
+    {0, 4, 7, 10},    /* DOM 7TH */
+    {0, 4, 7, 11},    /* MAJOR 7TH */
+    {0, 3, 7, 10},    /* MINOR 7TH */
+    {0, 3, 6, -1},    /* DIMINISHED */
+    {0, 4, 8, -1},    /* AUGMENTED */
+    {0, 2, 7, -1},    /* SUS2 */
     {0, 5, 7, -1},    /* SUS4 */
-    {0, 7, 12, -1},   /* POWER */
+    {0, 4, 7, 14},    /* 9TH */
 };
 
 /* Quantize or snap note to active scale */
 static inline uint32_t smk_scale_snap_note(uint32_t note, int32_t root, uint32_t scale_id)
 {
+    if (!smk_m.scale_on) return note;
     uint32_t mask;
     int32_t guard = 12;
     int32_t n = (int32_t)note;
     if (scale_id < 16u) {
         mask = SCALE_MASK[scale_id];
     } else {
-        mask = SCALE_MASK[1]; /* Fallback to major */
+        mask = SCALE_MASK[1];
     }
-    if (mask == 0xFFFu) return note; /* Chromatic: no change */
+    if (mask == 0xFFFu) return note;
 
     while (guard-- && !((mask >> (uint32_t)((n - root + 120) % 12)) & 1u)) {
         n--;
@@ -71,7 +61,12 @@ static inline uint32_t smk_scale_snap_note(uint32_t note, int32_t root, uint32_t
 /* Build a chord given a root note, mode, and voicing */
 static inline uint32_t smk_chord_build(uint32_t in_note, uint8_t *out_notes)
 {
-    uint32_t mode = smk_m.chord_mode;
+    if (!smk_m.chord_on) {
+        out_notes[0] = (uint8_t)in_note;
+        return 1;
+    }
+
+    uint32_t type = smk_m.chord_type;
     uint32_t voic = smk_m.chord_voic;
     int32_t r = (int32_t)in_note;
     int32_t root_pitch = (int32_t)smk_m.root;
@@ -79,17 +74,12 @@ static inline uint32_t smk_chord_build(uint32_t in_note, uint8_t *out_notes)
     uint32_t count = 0, i;
     int32_t iv[CHORD_MAX];
 
-    if (!mode || mode >= CH_COUNT) {
-        out_notes[0] = (uint8_t)in_note;
-        return 1;
-    }
-
-    if (mode >= CH_MAJ && mode <= CH_POW) {
-        for (i = 0; i < CHORD_MAX && SMK_CHORD_SHAPES[mode - CH_MAJ][i] >= 0; i++) {
-            iv[count++] = SMK_CHORD_SHAPES[mode - CH_MAJ][i];
+    if (type < 10u) {
+        for (i = 0; i < CHORD_MAX && SMK_CHORD_SHAPES[type][i] >= 0; i++) {
+            iv[count++] = SMK_CHORD_SHAPES[type][i];
         }
     } else {
-        /* Diatonic chord */
+        /* Diatonic triad or 7th */
         uint32_t mask = (scale_id < 16u) ? SCALE_MASK[scale_id] : SCALE_MASK[1];
         uint32_t deg[12], c = 0, at = 0, guard = 12;
         if (mask == 0xFFFu) mask = SCALE_MASK[1];
@@ -102,7 +92,7 @@ static inline uint32_t smk_chord_build(uint32_t in_note, uint8_t *out_notes)
             }
         }
         if (!c) c = 1;
-        uint32_t chord_notes_num = (mode == CH_DIA7 ? 4u : 3u);
+        uint32_t chord_notes_num = (type == CH_TYPE_DIA_7TH ? 4u : 3u);
         for (i = 0; i < chord_notes_num; i++) {
             uint32_t k = at + 2u * i;
             iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
