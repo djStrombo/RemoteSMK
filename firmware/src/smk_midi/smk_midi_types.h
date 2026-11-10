@@ -80,6 +80,10 @@ typedef struct {
     uint8_t nr_on;              /* 0: OFF, 1: ON */
     uint8_t nr_rate;            /* 0: 1/4, 1: 1/8, 2: 1/8T, 3: 1/16, 4: 1/16T, 5: 1/32 */
     uint8_t nr_gate;            /* 0: 25%, 1: 50%, 2: 75%, 3: 100% */
+    uint8_t nr_btn_down;        /* 1 if NOTE REPEAT button held down */
+    uint8_t nr_momentary_active;/* 1 if currently repeating momentarily while held */
+    uint8_t nr_was_off;         /* 1 if Note Repeat was OFF at press start */
+    uint32_t nr_btn_down_ms;    /* timestamp of press down */
     uint32_t last_nr_tick_ms;
 
     /* Global tempo */

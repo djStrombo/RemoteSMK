@@ -58,6 +58,11 @@ void smk_midi_toggle_mode(void)
         smk_session_suspended = 0;
         smk_midi_send_cc(smk_m.ch_keyboard - 1u, 123, 0); /* All Notes Off */
         smk_arp_clear_held();
+        smk_m.nr_btn_down = 0;
+        smk_m.nr_momentary_active = 0;
+        smk_m.held_pitch_mask = 0;
+        smk_m.held_keys_cnt = 0;
+        plat_leds(0, 0);
         smk_set_toast("EMULATOR / SYNTH RESTORED");
     }
 }
@@ -472,9 +477,47 @@ void smk_midi_handle_buttons(uint32_t buttons)
 {
     static uint32_t prev_btns = 0;
     uint32_t pressed = buttons & ~prev_btns;
+    uint32_t released = prev_btns & ~buttons;
     prev_btns = buttons;
 
-    if (!pressed || !smk_m.active) return;
+    if (!smk_m.active) return;
+
+    /* NOTE REPEAT button (B_SEL, bit 1) press */
+    if (pressed & (1u << 1)) {
+        smk_m.nr_btn_down = 1;
+        smk_m.nr_btn_down_ms = plat_ms();
+        smk_m.nr_was_off = (smk_m.nr_on == 0);
+        smk_m.nr_momentary_active = 0;
+    }
+
+    /* NOTE REPEAT button (B_SEL, bit 1) release */
+    if (released & (1u << 1)) {
+        if (smk_m.nr_btn_down) {
+            smk_m.nr_btn_down = 0;
+            if (smk_m.nr_momentary_active) {
+                smk_m.nr_on = 0;
+                smk_m.nr_momentary_active = 0;
+                smk_set_toast("REPEAT OFF");
+                if (smk_m.last_note_val) {
+                    smk_midi_send_note_off(smk_m.ch_keyboard - 1u, smk_m.last_note_val);
+                }
+            } else {
+                /* Short tap: toggle / open NR page */
+                if (smk_m.page == SMK_PAGE_NR) {
+                    smk_m.page = SMK_PAGE_GEN;
+                    smk_m.menu_depth = 0;
+                    smk_set_toast("GENERAL VIEW");
+                } else {
+                    smk_m.page = SMK_PAGE_NR;
+                    smk_m.menu_depth = 0;
+                    smk_m.menu_sel[0] = 0;
+                    smk_m.menu_scroll[0] = 0;
+                }
+            }
+        }
+    }
+
+    if (!pressed) return;
 
     /* PATCH button: "si se pulsa patch también se vuelve al general." */
     if (pressed & (1u << 6)) {
@@ -529,21 +572,6 @@ void smk_midi_handle_buttons(uint32_t buttons)
         return;
     }
 
-    /* NOTE REPEAT button (B_SEL, bit 1) */
-    if (pressed & (1u << 1)) {
-        if (smk_m.page == SMK_PAGE_NR) {
-            smk_m.page = SMK_PAGE_GEN;
-            smk_m.menu_depth = 0;
-            smk_set_toast("GENERAL VIEW");
-        } else {
-            smk_m.page = SMK_PAGE_NR;
-            smk_m.menu_depth = 0;
-            smk_m.menu_sel[0] = 0;
-            smk_m.menu_scroll[0] = 0;
-        }
-        return;
-    }
-
     /* GLOBE button (B_GLO, bit 5) */
     if (pressed & (1u << 5)) {
         if (smk_m.page == SMK_PAGE_GLOBE) {
@@ -559,7 +587,7 @@ void smk_midi_handle_buttons(uint32_t buttons)
         return;
     }
 
-    /* OCT- (B_OCTDN, bit 12): "hacia atrás con oct-" / "Si se pulsa en cualquier pagina de estas oct- se sale al general" */
+    /* OCT- (B_OCTDN, bit 12): "Quita lo de que se salga de las pantallas con octave-" */
     if (pressed & (1u << 12)) {
         if (smk_m.page == SMK_PAGE_GEN) {
             if (smk_m.octave > -3) smk_m.octave--;
@@ -567,10 +595,8 @@ void smk_midi_handle_buttons(uint32_t buttons)
         } else {
             if (smk_m.menu_depth > 0) {
                 smk_m.menu_depth = 0; /* Back to parent list */
-            } else {
-                smk_m.page = SMK_PAGE_GEN; /* Exit menu to General */
-                smk_set_toast("GENERAL VIEW");
             }
+            /* Do not exit to General on OCT- */
         }
         return;
     }
@@ -678,6 +704,16 @@ void smk_midi_step_ms(void)
     if (!smk_m.active) return;
     uint32_t now = plat_ms();
 
+    /* Note Repeat momentary trigger check (hold >= 200ms from OFF) */
+    if (smk_m.nr_btn_down && smk_m.nr_was_off && !smk_m.nr_momentary_active) {
+        if (now - smk_m.nr_btn_down_ms >= 200u) {
+            smk_m.nr_momentary_active = 1;
+            smk_m.nr_on = 1;
+            smk_m.last_nr_tick_ms = 0; /* tick immediately */
+            smk_set_toast("REPEAT (HOLD)");
+        }
+    }
+
     /* Arpeggiator timing */
     if (smk_m.arp_on && smk_arp.nheld > 0) {
         uint32_t period = smk_arp_calc_period();
@@ -736,4 +772,26 @@ void smk_midi_step_ms(void)
             }
         }
     }
+
+    /* Button and Key LEDs */
+    uint32_t leds = 0;
+
+    /* Current screen indicator LED */
+    switch (smk_m.page) {
+    case SMK_PAGE_GEN:   leds |= (1u << 6); break; /* B_HOME (PATCH) */
+    case SMK_PAGE_SCALE: leds |= (1u << 2); break; /* B_ENV (SCALE) */
+    case SMK_PAGE_CHORD: leds |= (1u << 3); break; /* B_LFO (CHORD) */
+    case SMK_PAGE_ARP:   leds |= (1u << 8); break; /* B_ARP */
+    case SMK_PAGE_NR:    leds |= (1u << 1); break; /* B_SEL (NOTE REPEAT) */
+    case SMK_PAGE_GLOBE: leds |= (1u << 5); break; /* B_GLO */
+    default: break;
+    }
+
+    /* Active engine LEDs (stay lit continuously across all screens) */
+    if (smk_m.scale_on) leds |= (1u << 2); /* B_ENV */
+    if (smk_m.chord_on) leds |= (1u << 3); /* B_LFO */
+    if (smk_m.arp_on)   leds |= (1u << 8); /* B_ARP */
+    if (smk_m.nr_on)    leds |= (1u << 1); /* B_SEL */
+
+    plat_leds(leds, plat_keys());
 }

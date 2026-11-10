@@ -33,7 +33,7 @@ static void smk_ui_draw_menu_frame(const char *title, const char *hint)
     sg_text(10, 8, 1, title, CLR_INK);
     sg_rect(0, 24, 240, 1, CLR_INK);
     sg_rect(0, 214, 240, 1, CLR_INK);
-    sg_text(8, 222, 1, hint ? hint : "[< >] SELECT  [OCT+] ENTER  [OCT-] BACK", CLR_INK);
+    sg_text(8, 222, 1, hint ? hint : "[< >] SELECT  [OCT+] ENTER  [PATCH] GENERAL", CLR_INK);
 }
 
 /* Helper to draw a single text list row */
