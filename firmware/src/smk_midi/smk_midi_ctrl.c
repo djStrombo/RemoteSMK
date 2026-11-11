@@ -48,7 +48,7 @@ void smk_midi_ctrl_init(void)
 
     /* Chords */
     smk_m.chord_on = 0; /* OFF by default */
-    smk_m.chord_type = CH_TYPE_MAJ;
+    smk_m.chord_type = CH_TYPE_TRIAD;
     smk_m.chord_voic = 0; /* CLOSE */
 
     /* Arp */

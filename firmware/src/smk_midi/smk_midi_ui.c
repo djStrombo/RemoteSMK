@@ -416,7 +416,7 @@ static void smk_ui_draw_globe(void)
             }
         } else if (smk_m.menu_sel[0] == 7) {
             /* MIDI CHANNELS */
-            smk_ui_draw_menu_frame("[ MIDI CHANNELS ]", "[< >] CHOOSE  [OCT+] OK  [OCT-] CANCEL");
+            smk_ui_draw_menu_frame("[ MIDI CHANNELS ]", "[< >] CH 01..16  [OCT+] NEXT  [OCT-] BACK");
 
             buf[0] = (char)('0' + smk_m.ch_keyboard / 10u);
             buf[1] = (char)('0' + smk_m.ch_keyboard % 10u);

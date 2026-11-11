@@ -16,26 +16,11 @@ enum {
 #define CHORD_MAX 4u
 
 static const char *const SMK_CHORD_NAMES[CH_TYPE_COUNT] = {
-    "MAJOR", "MINOR", "DOM 7TH", "MAJOR 7TH", "MINOR 7TH",
-    "DIMINISHED", "AUGMENTED", "SUS2", "SUS4", "9TH",
-    "DIATONIC 3RD", "DIATONIC 7TH"
+    "TRIADA", "7TH", "9TH", "5TH (POWER)", "SUS4", "OCTAVA"
 };
 
 static const char *const SMK_VOIC_NAMES[VC_COUNT] = {
     "CLOSE", "OPEN", "INV 1", "INV 2", "+OCT BASS"
-};
-
-static const int8_t SMK_CHORD_SHAPES[10][CHORD_MAX] = {
-    {0, 4, 7, -1},    /* MAJOR */
-    {0, 3, 7, -1},    /* MINOR */
-    {0, 4, 7, 10},    /* DOM 7TH */
-    {0, 4, 7, 11},    /* MAJOR 7TH */
-    {0, 3, 7, 10},    /* MINOR 7TH */
-    {0, 3, 6, -1},    /* DIMINISHED */
-    {0, 4, 8, -1},    /* AUGMENTED */
-    {0, 2, 7, -1},    /* SUS2 */
-    {0, 5, 7, -1},    /* SUS4 */
-    {0, 4, 7, 14},    /* 9TH */
 };
 
 /* Quantize or snap note to active scale */
@@ -58,7 +43,7 @@ static inline uint32_t smk_scale_snap_note(uint32_t note, int32_t root, uint32_t
     return (uint32_t)(n < 0 ? 0 : n > 127 ? 127 : n);
 }
 
-/* Build a chord given a root note, mode, and voicing */
+/* Build a chord given a root note, mode, and voicing - Diatonic to active scale */
 static inline uint32_t smk_chord_build(uint32_t in_note, uint8_t *out_notes)
 {
     if (!smk_m.chord_on) {
@@ -74,29 +59,80 @@ static inline uint32_t smk_chord_build(uint32_t in_note, uint8_t *out_notes)
     uint32_t count = 0, i;
     int32_t iv[CHORD_MAX];
 
-    if (type < 10u) {
-        for (i = 0; i < CHORD_MAX && SMK_CHORD_SHAPES[type][i] >= 0; i++) {
-            iv[count++] = SMK_CHORD_SHAPES[type][i];
+    /* Diatonic chord based on the active scale (or Major if chromatic) */
+    uint32_t mask = (scale_id < 16u) ? SCALE_MASK[scale_id] : SCALE_MASK[1];
+    uint32_t deg[12], c = 0, at = 0, guard = 12;
+    if (mask == 0xFFFu) mask = SCALE_MASK[1]; /* Chromatic falls back to Major scale degrees */
+
+    while (guard-- && !((mask >> (uint32_t)((r - root_pitch + 120) % 12)) & 1u))
+        r--;
+
+    for (i = 0; i < 12u; i++) {
+        if ((mask >> i) & 1u) {
+            if (i == (uint32_t)((r - root_pitch + 120) % 12)) at = c;
+            deg[c++] = i;
         }
-    } else {
-        /* Diatonic triad or 7th */
-        uint32_t mask = (scale_id < 16u) ? SCALE_MASK[scale_id] : SCALE_MASK[1];
-        uint32_t deg[12], c = 0, at = 0, guard = 12;
-        if (mask == 0xFFFu) mask = SCALE_MASK[1];
-        while (guard-- && !((mask >> (uint32_t)((r - root_pitch + 120) % 12)) & 1u))
-            r--;
-        for (i = 0; i < 12u; i++) {
-            if ((mask >> i) & 1u) {
-                if (i == (uint32_t)((r - root_pitch + 120) % 12)) at = c;
-                deg[c++] = i;
-            }
-        }
-        if (!c) c = 1;
-        uint32_t chord_notes_num = (type == CH_TYPE_DIA_7TH ? 4u : 3u);
-        for (i = 0; i < chord_notes_num; i++) {
+    }
+    if (!c) deg[c++] = 0;
+
+    switch (type) {
+    case CH_TYPE_TRIAD: {
+        /* Diatonic triad: 1st, 3rd, 5th */
+        for (i = 0; i < 3; i++) {
             uint32_t k = at + 2u * i;
             iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
         }
+        break;
+    }
+    case CH_TYPE_7TH: {
+        /* Diatonic 7th: 1st, 3rd, 5th, 7th */
+        for (i = 0; i < 4; i++) {
+            uint32_t k = at + 2u * i;
+            iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
+        }
+        break;
+    }
+    case CH_TYPE_9TH: {
+        /* Diatonic 9th: 1st, 3rd, 5th, 9th (degrees: 1, 3, 5, 9 => k = at, at+2, at+4, at+8) */
+        static const uint8_t deg_idx_9th[4] = {0, 2, 4, 8};
+        for (i = 0; i < 4; i++) {
+            uint32_t k = at + deg_idx_9th[i];
+            iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
+        }
+        break;
+    }
+    case CH_TYPE_5TH: {
+        /* Diatonic 5th (Power Chord): 1st, 5th */
+        static const uint8_t deg_idx_5th[2] = {0, 4};
+        for (i = 0; i < 2; i++) {
+            uint32_t k = at + deg_idx_5th[i];
+            iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
+        }
+        break;
+    }
+    case CH_TYPE_SUS4: {
+        /* Diatonic Sus4: 1st, 4th, 5th */
+        static const uint8_t deg_idx_sus4[3] = {0, 3, 4};
+        for (i = 0; i < 3; i++) {
+            uint32_t k = at + deg_idx_sus4[i];
+            iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
+        }
+        break;
+    }
+    case CH_TYPE_OCT: {
+        /* Diatonic Octave: 1st, 8ve */
+        iv[count++] = 0;
+        iv[count++] = 12;
+        break;
+    }
+    default: {
+        /* Fallback: Triad */
+        for (i = 0; i < 3; i++) {
+            uint32_t k = at + 2u * i;
+            iv[count++] = (int32_t)deg[k % c] + 12 * (int32_t)(k / c) - (int32_t)deg[at];
+        }
+        break;
+    }
     }
 
     for (i = 0; i < count; i++) {

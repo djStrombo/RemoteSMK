@@ -339,18 +339,25 @@ void smk_midi_handle_encoder(int role, int32_t delta)
             } else if (smk_m.menu_sel[0] == 6) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 3);
             } else if (smk_m.menu_sel[0] == 7) {
-                /* MIDI Channels */
-                if (delta > 0) {
-                    if (smk_m.menu_sel[1] == 0 && smk_m.ch_keyboard < 16) smk_m.ch_keyboard++;
-                    else if (smk_m.menu_sel[1] == 1 && smk_m.ch_knobs < 16) smk_m.ch_knobs++;
-                    else if (smk_m.menu_sel[1] == 2 && smk_m.ch_faders < 16) smk_m.ch_faders++;
-                    else if (smk_m.menu_sel[1] == 3 && smk_m.ch_pads < 16) smk_m.ch_pads++;
-                } else {
-                    if (smk_m.menu_sel[1] == 0 && smk_m.ch_keyboard > 1) smk_m.ch_keyboard--;
-                    else if (smk_m.menu_sel[1] == 1 && smk_m.ch_knobs > 1) smk_m.ch_knobs--;
-                    else if (smk_m.menu_sel[1] == 2 && smk_m.ch_faders > 1) smk_m.ch_faders--;
-                    else if (smk_m.menu_sel[1] == 3 && smk_m.ch_pads > 1) smk_m.ch_pads--;
-                }
+                /* MIDI Channels: < > changes the channel value (1..16) */
+                char tbuf[16];
+                uint8_t *ch_ptr = (smk_m.menu_sel[1] == 0) ? &smk_m.ch_keyboard :
+                                  (smk_m.menu_sel[1] == 1) ? &smk_m.ch_knobs :
+                                  (smk_m.menu_sel[1] == 2) ? &smk_m.ch_faders : &smk_m.ch_pads;
+                const char *row_name = (smk_m.menu_sel[1] == 0) ? "KBD CH " :
+                                       (smk_m.menu_sel[1] == 1) ? "KNOB CH " :
+                                       (smk_m.menu_sel[1] == 2) ? "FDR CH " : "PAD CH ";
+                int32_t val = (int32_t)*ch_ptr + delta;
+                if (val < 1) val = 1;
+                if (val > 16) val = 16;
+                *ch_ptr = (uint8_t)val;
+
+                uint32_t len = 0;
+                while (row_name[len]) { tbuf[len] = row_name[len]; len++; }
+                tbuf[len++] = (char)('0' + val / 10);
+                tbuf[len++] = (char)('0' + val % 10);
+                tbuf[len] = 0;
+                smk_set_toast(tbuf);
             }
         }
         return;
@@ -425,9 +432,19 @@ void smk_midi_handle_pad(uint32_t id, uint32_t val)
         }
 
         if (smk_m.pad_mode == 0) {
-            /* NOTES mode: play drum note */
+            /* NOTES mode: play note starting at C2 (36) across 64 notes (4 banks * 16 pads) */
             uint32_t note = 36u + pad_idx;
-            uint32_t pvel = smk_m.full_velocity ? 127u : (uint32_t)v;
+            uint32_t pvel = (uint32_t)v;
+            if (smk_m.full_velocity) {
+                pvel = 127u;
+            } else if (smk_m.pad_sens == 0) { /* LOW sensitivity */
+                pvel = (pvel * pvel) / 127u;
+                if (pvel < 1) pvel = 1;
+            } else if (smk_m.pad_sens == 2) { /* HIGH sensitivity */
+                uint32_t inv = 127u - pvel;
+                pvel = 127u - (inv * inv) / 127u;
+                if (pvel > 127) pvel = 127;
+            }
             if (v) smk_midi_send_note_on(smk_m.ch_pads - 1u, note, pvel);
             else smk_midi_send_note_off(smk_m.ch_pads - 1u, note);
         } else {
@@ -757,6 +774,11 @@ void smk_midi_handle_buttons(uint32_t buttons)
                 } else if (smk_m.menu_sel[0] == 4) smk_m.key_vel_curve = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 5) smk_m.pad_sens = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 6) smk_m.knob_speed = (uint8_t)smk_m.menu_sel[1];
+                else if (smk_m.menu_sel[0] == 7) {
+                    /* In MIDI Channels, OCT+ advances to next row (KBD -> KNOB -> FDR -> PAD) */
+                    smk_m.menu_sel[1] = (smk_m.menu_sel[1] + 1) % 4;
+                    return;
+                }
             }
             smk_m.menu_depth = 0;
             smk_set_toast("CONFIRMED");

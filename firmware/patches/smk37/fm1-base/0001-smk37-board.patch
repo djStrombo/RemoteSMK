@@ -432,7 +432,7 @@
 +}
 --- a/device/smk_panel.c
 +++ b/device/smk_panel.c
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,439 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* The M-VAVE SMK-37's panel as an FM-1's (BOARD_SMK37): plat.h's buttons, keys, encoders and lights on the SMK's
@@ -459,6 +459,9 @@
 + *             level do not show); SEQ PLAY's two halves are PLAY's red and green; a pad at its white key's level
 + *             (lit, the two steady levels, the mid level, the glow), in the warm white of the FM-1's key LEDs
 + *   the rest  the pitch wheel -8192..8191, the mod wheel 0..127, the pedal down / up: changes */
++
++extern uint8_t smk_session_suspended;
++static void smk_lights_update(void);
 +
 +static uint8_t smk_live_btns[18] = {
 +    17, 16, 14, 15, 0, 1, 10, 18, 3, 19, 7, 9, 8, 6, 2, 11, 12, 13
@@ -611,9 +614,16 @@
 +    for (k = 0; k < NKEYS; k++)
 +        if (r.keys[(SMK_KEY_F3 + k) >> 5] >> ((SMK_KEY_F3 + k) & 31u) & 1u)
 +            kb |= 1u << k;
-+    for (i = 0; i < 16u; i++)
-+        if (r.pads >> i & 1u)
++    for (i = 0; i < 16u; i++) {
++        uint32_t on = (r.pads >> i) & 1u, was = (smk_pn.was.pads >> i) & 1u;
++        if (on != was) {
++            smk_q_put(PLAT_SMK_PAD, i, on ? (r.pad_vel[i] ? r.pad_vel[i] : 100u) : 0u);
++            if (smk_session_suspended)
++                smk_lights_update();
++        }
++        if (on && !smk_session_suspended)
 +            pad |= 1u << SMK_WHITE_K[i];
++    }
 +    for (k = 0; k < NKEYS; k++) {                             /* a press, from either: its velocity */
 +        uint32_t m = 1u << k;
 +        if ((kb & m) && !(smk_pn.kb & m))
@@ -757,9 +767,13 @@
 +        led |= 1u << 1;
 +    for (i = 0; i < SMK_NPAD; i++) {
 +        uint32_t m = 1u << SMK_WHITE_K[i], r, g, b;
-+        lvl = smk_lt.k & m ? 255u : smk_lt.la & m ? (uint8_t)(smk_lt.a8 * 255u / 8u) :
-+              smk_lt.lb & m ? (uint8_t)(smk_lt.b8 * 255u / 8u) : smk_lt.mk & m ? 32u :
-+              smk_lt.glow > 0 && (smk_lt.dk & m) ? 10u : 0u;
++        if (smk_session_suspended) {
++            lvl = (smk_pn.was.pads >> i & 1u) ? 255u : 10u;
++        } else {
++            lvl = smk_lt.k & m ? 255u : smk_lt.la & m ? (uint8_t)(smk_lt.a8 * 255u / 8u) :
++                  smk_lt.lb & m ? (uint8_t)(smk_lt.b8 * 255u / 8u) : smk_lt.mk & m ? 32u :
++                  smk_lt.glow > 0 && (smk_lt.dk & m) ? 10u : 0u;
++        }
 +        r = (SMK_PAD_RGB >> 16) * SMK_PAD_LIT * lvl / (255u * 255u);
 +        g = (SMK_PAD_RGB >> 8 & 0xFFu) * SMK_PAD_LIT * lvl / (255u * 255u);
 +        b = (SMK_PAD_RGB & 0xFFu) * SMK_PAD_LIT * lvl / (255u * 255u);
@@ -1448,7 +1462,7 @@
 + * buttons, keys, knobs and lights above on the SMK's (keybed keys 5..31 and the 16 pads the 27 keys and the 16 white
 + * keys, K1 MASTER, K2..K8 the encoders, the faders KNOB 1..4 too, < and > SELECT, the 2 x 6 buttons by place; lib/touch
 + * the keys' and pads' velocity). What the FM-1 has not comes as changes, one a call (main loop): */
-+enum { PLAT_SMK_KEY, PLAT_SMK_BTN, PLAT_SMK_BEND, PLAT_SMK_MOD, PLAT_SMK_PEDAL, PLAT_SMK_FADER };
++enum { PLAT_SMK_KEY, PLAT_SMK_BTN, PLAT_SMK_PAD, PLAT_SMK_BEND, PLAT_SMK_MOD, PLAT_SMK_PEDAL, PLAT_SMK_FADER };
 +enum { PLAT_SMK_KNOB_BANK, PLAT_SMK_FADER_BANK };   /* PLAT_SMK_BTN's id */
 +typedef struct {
 +    uint8_t type, id;   /* KEY: keybed key 0..36 (one of the ten outer ones: 0..4 C3..E3, 32..36 G#5..C6); BTN: the
