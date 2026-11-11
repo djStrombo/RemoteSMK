@@ -1109,11 +1109,11 @@
 +        if (ota_crc16(e + 2, 30, 0) != ota_rd16(e))
 +            break;
 +        if (ota_memeq(e + 16, (const uint8_t *)"VM", 3))
-+            vm = ota_rd32(e + 4) == 0x9D000u;
++            vm = ota_rd32(e + 4) == 0x9D000u || ota_rd32(e + 4) == 0x93000u;
 +        if (ota_memeq(e + 16, (const uint8_t *)"USRTRIM", 8))
 +            trim = ota_rd32(e + 4) == 0xC1000u;
 +    }
-+    return vm && trim ? 0 : -15;
++    return vm ? 0 : -15;
 +}
 +#endif
 +
