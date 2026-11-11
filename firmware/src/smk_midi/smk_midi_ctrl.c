@@ -87,6 +87,7 @@ void smk_midi_ctrl_init(void)
     smk_m.knob_bank = 0;
     smk_m.fader_bank = 0;
     smk_m.pad_bank = 0;
+    smk_m.four_banks = 0;
     smk_m.num_knob_banks = 2;
     smk_m.num_fader_banks = 2;
     smk_m.num_pad_banks = 2;

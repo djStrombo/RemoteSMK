@@ -432,7 +432,7 @@
 +}
 --- a/device/smk_panel.c
 +++ b/device/smk_panel.c
-@@ -0,0 +1,421 @@
+@@ -0,0 +1,425 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* The M-VAVE SMK-37's panel as an FM-1's (BOARD_SMK37): plat.h's buttons, keys, encoders and lights on the SMK's
@@ -751,6 +751,10 @@
 +                led |= 1u << i;
 +        }
 +    }
++    if (smk_lt.b & (1u << 16))
++        led |= 1u << 0;
++    if (smk_lt.b & (1u << 17))
++        led |= 1u << 1;
 +    for (i = 0; i < SMK_NPAD; i++) {
 +        uint32_t m = 1u << SMK_WHITE_K[i], r, g, b;
 +        lvl = smk_lt.k & m ? 255u : smk_lt.la & m ? (uint8_t)(smk_lt.a8 * 255u / 8u) :

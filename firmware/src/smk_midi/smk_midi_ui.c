@@ -33,7 +33,7 @@ static void smk_ui_draw_menu_frame(const char *title, const char *hint)
     sg_text(10, 8, 1, title, CLR_INK);
     sg_rect(0, 24, 240, 1, CLR_INK);
     sg_rect(0, 214, 240, 1, CLR_INK);
-    sg_text(8, 222, 1, hint ? hint : "[< >] SELECT  [OCT+] ENTER  [PATCH] GENERAL", CLR_INK);
+    sg_text(8, 222, 1, hint ? hint : "[< >] CHOOSE  [OCT-] OFF  [OCT+] ON", CLR_INK);
 }
 
 /* Helper to draw a single text list row */
@@ -133,14 +133,20 @@ static void smk_ui_draw_general(void)
     buf[20] = 0;
     sg_text(12, 174, 1, buf, CLR_INK);
 
-    /* Line 2: Channels */
-    buf[0] = 'K'; buf[1] = 'B'; buf[2] = 'D'; buf[3] = ' '; buf[4] = 'C'; buf[5] = 'H'; buf[6] = ':';
-    buf[7] = (char)('0' + smk_m.ch_keyboard / 10u);
-    buf[8] = (char)('0' + smk_m.ch_keyboard % 10u);
-    buf[9] = ' '; buf[10] = 'P'; buf[11] = 'A'; buf[12] = 'D'; buf[13] = 'S'; buf[14] = ':';
-    buf[15] = smk_m.pad_mode ? 'C' : 'N';
-    buf[16] = smk_m.pad_mode ? 'C' : 'T';
-    buf[17] = 0;
+    /* Line 2: Banks */
+    char max_b = smk_m.four_banks ? '4' : '2';
+    buf[0] = 'K'; buf[1] = 'N'; buf[2] = 'B'; buf[3] = ':'; buf[4] = 'B';
+    buf[5] = (char)('1' + smk_m.knob_bank);
+    buf[6] = '/'; buf[7] = max_b;
+    buf[8] = ' '; buf[9] = ' ';
+    buf[10] = 'F'; buf[11] = 'D'; buf[12] = 'R'; buf[13] = ':'; buf[14] = 'B';
+    buf[15] = (char)('1' + smk_m.fader_bank);
+    buf[16] = '/'; buf[17] = max_b;
+    buf[18] = ' '; buf[19] = ' ';
+    buf[20] = 'P'; buf[21] = 'A'; buf[22] = 'D'; buf[23] = ':'; buf[24] = 'B';
+    buf[25] = (char)('1' + smk_m.pad_bank);
+    buf[26] = '/'; buf[27] = max_b;
+    buf[28] = 0;
     sg_text(12, 192, 1, buf, CLR_DIM);
 
     /* Bottom navigation shortcuts */
@@ -185,16 +191,6 @@ static void smk_ui_draw_scale(void)
                                      idx == (uint32_t)smk_m.scale ? "<ACTIVE>" : 0,
                                      idx == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 3) {
-            /* TEMPO adjust */
-            smk_ui_draw_menu_frame("[ TEMPO ADJUST ]", "[< >] ADJUST  [OCT+] OK  [OCT-] CANCEL");
-            sg_text(20, 60, 1, "CURRENT TEMPO:", CLR_INK);
-            buf[0] = (char)('0' + smk_m.temp_val / 100);
-            buf[1] = (char)('0' + (smk_m.temp_val % 100) / 10);
-            buf[2] = (char)('0' + smk_m.temp_val % 10);
-            buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-            sg_text(40, 90, 2, buf, CLR_INK);
-            sg_text(20, 140, 1, "Use < and > arrows to change", CLR_DIM);
         }
     }
 }
@@ -232,14 +228,6 @@ static void smk_ui_draw_chord(void)
                                      i == (uint32_t)smk_m.chord_voic ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 3) {
-            smk_ui_draw_menu_frame("[ TEMPO ADJUST ]", "[< >] ADJUST  [OCT+] OK  [OCT-] CANCEL");
-            sg_text(20, 60, 1, "CURRENT TEMPO:", CLR_INK);
-            buf[0] = (char)('0' + smk_m.temp_val / 100);
-            buf[1] = (char)('0' + (smk_m.temp_val % 100) / 10);
-            buf[2] = (char)('0' + smk_m.temp_val % 10);
-            buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-            sg_text(40, 90, 2, buf, CLR_INK);
         }
     }
 }
@@ -298,14 +286,6 @@ static void smk_ui_draw_arp(void)
                                      i == (uint32_t)smk_m.arp_gate ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 6) {
-            smk_ui_draw_menu_frame("[ TEMPO ADJUST ]", "[< >] ADJUST  [OCT+] OK  [OCT-] CANCEL");
-            sg_text(20, 60, 1, "CURRENT TEMPO:", CLR_INK);
-            buf[0] = (char)('0' + smk_m.temp_val / 100);
-            buf[1] = (char)('0' + (smk_m.temp_val % 100) / 10);
-            buf[2] = (char)('0' + smk_m.temp_val % 10);
-            buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-            sg_text(40, 90, 2, buf, CLR_INK);
         }
     }
 }
@@ -342,14 +322,6 @@ static void smk_ui_draw_nr(void)
                                      i == (uint32_t)smk_m.nr_gate ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 3) {
-            smk_ui_draw_menu_frame("[ TEMPO ADJUST ]", "[< >] ADJUST  [OCT+] OK  [OCT-] CANCEL");
-            sg_text(20, 60, 1, "CURRENT TEMPO:", CLR_INK);
-            buf[0] = (char)('0' + smk_m.temp_val / 100);
-            buf[1] = (char)('0' + (smk_m.temp_val % 100) / 10);
-            buf[2] = (char)('0' + smk_m.temp_val % 10);
-            buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-            sg_text(40, 90, 2, buf, CLR_INK);
         }
     }
 }
@@ -364,19 +336,29 @@ static void smk_ui_draw_globe(void)
 
     if (smk_m.menu_depth == 0) {
         smk_ui_draw_menu_frame("[ GLOBE SETTINGS ]", 0);
-        smk_ui_draw_list_row(32, "1. CC ASSIGN", ">", smk_m.menu_sel[0] == 0);
-        smk_ui_draw_list_row(54, "2. PAD MODE:", smk_m.pad_mode ? "[CC]" : "[NOTES]", smk_m.menu_sel[0] == 1);
-        smk_ui_draw_list_row(76, "3. FULL VELOCITY:", smk_m.full_velocity ? "[ON]" : "[OFF]", smk_m.menu_sel[0] == 2);
-        smk_ui_draw_list_row(98, "4. KEY VELOCITY:", VEL_CURVES[smk_m.key_vel_curve % 3], smk_m.menu_sel[0] == 3);
-        smk_ui_draw_list_row(120, "5. PAD SENS:", SENS_NAMES[smk_m.pad_sens % 3], smk_m.menu_sel[0] == 4);
-        smk_ui_draw_list_row(142, "6. KNOB SPEED:", SPEED_NAMES[smk_m.knob_speed % 3], smk_m.menu_sel[0] == 5);
-        smk_ui_draw_list_row(164, "7. MIDI CHANNELS", ">", smk_m.menu_sel[0] == 6);
-
-        buf[0] = (char)('0' + smk_m.bpm / 100u);
-        buf[1] = (char)('0' + (smk_m.bpm % 100u) / 10u);
-        buf[2] = (char)('0' + smk_m.bpm % 10u);
-        buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-        smk_ui_draw_list_row(186, "8. TEMPO:", buf, smk_m.menu_sel[0] == 7);
+        uint32_t i;
+        for (i = 0; i < 7 && (i + (uint32_t)smk_m.menu_scroll[0]) < 9u; i++) {
+            uint32_t idx = i + (uint32_t)smk_m.menu_scroll[0];
+            int32_t y = 34 + (int32_t)i * 24;
+            switch (idx) {
+            case 0: smk_ui_draw_list_row(y, "1. CC ASSIGN", ">", idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 1: smk_ui_draw_list_row(y, "2. PAD MODE:", smk_m.pad_mode ? "[CC]" : "[NOTES]", idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 2: smk_ui_draw_list_row(y, "3. FULL VELOCITY:", smk_m.full_velocity ? "[ON]" : "[OFF]", idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 3: smk_ui_draw_list_row(y, "4. 4 BANKS:", smk_m.four_banks ? "[ON]" : "[OFF]", idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 4: smk_ui_draw_list_row(y, "5. KEY VELOCITY:", VEL_CURVES[smk_m.key_vel_curve % 3], idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 5: smk_ui_draw_list_row(y, "6. PAD SENS:", SENS_NAMES[smk_m.pad_sens % 3], idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 6: smk_ui_draw_list_row(y, "7. KNOB SPEED:", SPEED_NAMES[smk_m.knob_speed % 3], idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 7: smk_ui_draw_list_row(y, "8. MIDI CHANNELS", ">", idx == (uint32_t)smk_m.menu_sel[0]); break;
+            case 8: {
+                buf[0] = (char)('0' + smk_m.bpm / 100u);
+                buf[1] = (char)('0' + (smk_m.bpm % 100u) / 10u);
+                buf[2] = (char)('0' + smk_m.bpm % 10u);
+                buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
+                smk_ui_draw_list_row(y, "9. TEMPO:", buf, idx == (uint32_t)smk_m.menu_sel[0]);
+                break;
+            }
+            }
+        }
     } else {
         if (smk_m.menu_sel[0] == 0) {
             /* CC ASSIGN MODE */
@@ -405,7 +387,7 @@ static void smk_ui_draw_globe(void)
 
                 sg_text(16, 170, 1, "Use < > to change, OCT+ to confirm", CLR_DIM);
             }
-        } else if (smk_m.menu_sel[0] == 3) {
+        } else if (smk_m.menu_sel[0] == 4) {
             /* KEY VELOCITY */
             smk_ui_draw_menu_frame("[ KEY VELOCITY CURVE ]", "[< >] CHOOSE  [OCT+] OK  [OCT-] CANCEL");
             uint32_t i;
@@ -414,7 +396,7 @@ static void smk_ui_draw_globe(void)
                                      i == (uint32_t)smk_m.key_vel_curve ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 4) {
+        } else if (smk_m.menu_sel[0] == 5) {
             /* PAD SENSITIVITY */
             smk_ui_draw_menu_frame("[ PAD SENSITIVITY ]", "[< >] CHOOSE  [OCT+] OK  [OCT-] CANCEL");
             uint32_t i;
@@ -423,7 +405,7 @@ static void smk_ui_draw_globe(void)
                                      i == (uint32_t)smk_m.pad_sens ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 5) {
+        } else if (smk_m.menu_sel[0] == 6) {
             /* KNOB SPEED */
             smk_ui_draw_menu_frame("[ KNOB SPEED ]", "[< >] CHOOSE  [OCT+] OK  [OCT-] CANCEL");
             uint32_t i;
@@ -432,7 +414,7 @@ static void smk_ui_draw_globe(void)
                                      i == (uint32_t)smk_m.knob_speed ? "<ACTIVE>" : 0,
                                      i == (uint32_t)smk_m.menu_sel[1]);
             }
-        } else if (smk_m.menu_sel[0] == 6) {
+        } else if (smk_m.menu_sel[0] == 7) {
             /* MIDI CHANNELS */
             smk_ui_draw_menu_frame("[ MIDI CHANNELS ]", "[< >] CHOOSE  [OCT+] OK  [OCT-] CANCEL");
 
@@ -455,14 +437,6 @@ static void smk_ui_draw_globe(void)
             buf[1] = (char)('0' + smk_m.ch_pads % 10u);
             buf[2] = 0;
             smk_ui_draw_list_row(106, "4. PADS CH:", buf, smk_m.menu_sel[1] == 3);
-        } else if (smk_m.menu_sel[0] == 7) {
-            smk_ui_draw_menu_frame("[ TEMPO ADJUST ]", "[< >] ADJUST  [OCT+] OK  [OCT-] CANCEL");
-            sg_text(20, 60, 1, "CURRENT TEMPO:", CLR_INK);
-            buf[0] = (char)('0' + smk_m.temp_val / 100);
-            buf[1] = (char)('0' + (smk_m.temp_val % 100) / 10);
-            buf[2] = (char)('0' + smk_m.temp_val % 10);
-            buf[3] = ' '; buf[4] = 'B'; buf[5] = 'P'; buf[6] = 'M'; buf[7] = 0;
-            sg_text(40, 90, 2, buf, CLR_INK);
         }
     }
 }

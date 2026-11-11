@@ -17,22 +17,29 @@ void smk_seq_init_patterns(void)
     /* Legacy stub for sa_main.c initialization */
 }
 
-/* Helper to send MIDI 3-byte message over USB & BLE */
+/* Helper to send MIDI 3-byte message over USB & BLE and host sessions */
+static void rf_trs_in(uint32_t pkt);
 extern void sa_midi3(uint32_t a, uint32_t b, uint32_t c);
+
+void smk_midi_send_msg(uint32_t st, uint32_t d1, uint32_t d2)
+{
+    sa_midi3(st, d1, d2);
+    rf_trs_in((st >> 4) | ((st & 0xFFu) << 8) | ((d1 & 0x7Fu) << 16) | ((d2 & 0x7Fu) << 24));
+}
 
 static inline void smk_midi_send_note_on(uint32_t ch, uint32_t note, uint32_t vel)
 {
-    sa_midi3(0x90u | (ch & 0x0Fu), note & 0x7Fu, vel & 0x7Fu);
+    smk_midi_send_msg(0x90u | (ch & 0x0Fu), note & 0x7Fu, vel & 0x7Fu);
 }
 
 static inline void smk_midi_send_note_off(uint32_t ch, uint32_t note)
 {
-    sa_midi3(0x80u | (ch & 0x0Fu), note & 0x7Fu, 0x40u);
+    smk_midi_send_msg(0x80u | (ch & 0x0Fu), note & 0x7Fu, 0x40u);
 }
 
 static inline void smk_midi_send_cc(uint32_t ch, uint32_t cc, uint32_t val)
 {
-    sa_midi3(0xB0u | (ch & 0x0Fu), cc & 0x7Fu, val & 0x7Fu);
+    smk_midi_send_msg(0xB0u | (ch & 0x0Fu), cc & 0x7Fu, val & 0x7Fu);
 }
 
 static void smk_set_toast(const char *msg)
@@ -285,7 +292,7 @@ void smk_midi_handle_encoder(int role, int32_t delta)
         if (smk_m.menu_depth == 0) {
             int32_t count = 4;
             if (smk_m.page == SMK_PAGE_ARP) count = 7;
-            else if (smk_m.page == SMK_PAGE_GLOBE) count = 8;
+            else if (smk_m.page == SMK_PAGE_GLOBE) count = 9;
             smk_list_navigate(&smk_m.menu_sel[0], &smk_m.menu_scroll[0], delta, count);
             return;
         }
@@ -296,20 +303,12 @@ void smk_midi_handle_encoder(int role, int32_t delta)
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 12);
             } else if (smk_m.menu_sel[0] == 2) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, SCALE_TOTAL);
-            } else if (smk_m.menu_sel[0] == 3) {
-                int32_t t = (int32_t)smk_m.temp_val + delta;
-                if (t < 40) t = 40; if (t > 240) t = 240;
-                smk_m.temp_val = (int16_t)t;
             }
         } else if (smk_m.page == SMK_PAGE_CHORD) {
             if (smk_m.menu_sel[0] == 1) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, CH_TYPE_COUNT);
             } else if (smk_m.menu_sel[0] == 2) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, VC_COUNT);
-            } else if (smk_m.menu_sel[0] == 3) {
-                int32_t t = (int32_t)smk_m.temp_val + delta;
-                if (t < 40) t = 40; if (t > 240) t = 240;
-                smk_m.temp_val = (int16_t)t;
             }
         } else if (smk_m.page == SMK_PAGE_ARP) {
             if (smk_m.menu_sel[0] == 1) {
@@ -320,20 +319,12 @@ void smk_midi_handle_encoder(int role, int32_t delta)
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 4);
             } else if (smk_m.menu_sel[0] == 4) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 4);
-            } else if (smk_m.menu_sel[0] == 6) {
-                int32_t t = (int32_t)smk_m.temp_val + delta;
-                if (t < 40) t = 40; if (t > 240) t = 240;
-                smk_m.temp_val = (int16_t)t;
             }
         } else if (smk_m.page == SMK_PAGE_NR) {
             if (smk_m.menu_sel[0] == 1) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 6);
             } else if (smk_m.menu_sel[0] == 2) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 4);
-            } else if (smk_m.menu_sel[0] == 3) {
-                int32_t t = (int32_t)smk_m.temp_val + delta;
-                if (t < 40) t = 40; if (t > 240) t = 240;
-                smk_m.temp_val = (int16_t)t;
             }
         } else if (smk_m.page == SMK_PAGE_GLOBE) {
             if (smk_m.menu_sel[0] == 0) {
@@ -341,13 +332,13 @@ void smk_midi_handle_encoder(int role, int32_t delta)
                 int32_t c = (int32_t)smk_m.cc_learn_val + delta;
                 if (c < 0) c = 0; if (c > 127) c = 127;
                 smk_m.cc_learn_val = (uint8_t)c;
-            } else if (smk_m.menu_sel[0] == 3) {
-                smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 3);
             } else if (smk_m.menu_sel[0] == 4) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 3);
             } else if (smk_m.menu_sel[0] == 5) {
                 smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 3);
             } else if (smk_m.menu_sel[0] == 6) {
+                smk_list_navigate(&smk_m.menu_sel[1], &smk_m.menu_scroll[1], delta, 3);
+            } else if (smk_m.menu_sel[0] == 7) {
                 /* MIDI Channels */
                 if (delta > 0) {
                     if (smk_m.menu_sel[1] == 0 && smk_m.ch_keyboard < 16) smk_m.ch_keyboard++;
@@ -360,10 +351,6 @@ void smk_midi_handle_encoder(int role, int32_t delta)
                     else if (smk_m.menu_sel[1] == 2 && smk_m.ch_faders > 1) smk_m.ch_faders--;
                     else if (smk_m.menu_sel[1] == 3 && smk_m.ch_pads > 1) smk_m.ch_pads--;
                 }
-            } else if (smk_m.menu_sel[0] == 7) {
-                int32_t t = (int32_t)smk_m.temp_val + delta;
-                if (t < 40) t = 40; if (t > 240) t = 240;
-                smk_m.temp_val = (int16_t)t;
             }
         }
         return;
@@ -450,25 +437,60 @@ void smk_midi_handle_pad(uint32_t id, uint32_t val)
     }
 }
 
-/* Hardware bank buttons handler */
-void smk_midi_handle_bank_btn(int btn_id)
+/* Hardware bank buttons state and combo detection */
+static uint8_t bank_down[2] = {0, 0};
+static uint32_t bank_down_ms[2] = {0, 0};
+static uint8_t bank_pending[2] = {0, 0};
+static uint8_t bank_combo_fired = 0;
+
+static void smk_show_bank_toast(const char *name, uint32_t bank, uint32_t num_banks)
 {
-    if (btn_id == 0) {
-        smk_midi_toggle_knob_bank();
-        char buf[16];
-        buf[0] = 'K'; buf[1] = 'N'; buf[2] = 'O'; buf[3] = 'B'; buf[4] = ' ';
-        buf[5] = 'B'; buf[6] = 'A'; buf[7] = 'N'; buf[8] = 'K'; buf[9] = ' ';
-        buf[10] = (char)('1' + smk_m.knob_bank);
-        buf[11] = 0;
-        smk_set_toast(buf);
-    } else if (btn_id == 1) {
-        smk_midi_toggle_fader_bank();
-        char buf[16];
-        buf[0] = 'F'; buf[1] = 'A'; buf[2] = 'D'; buf[3] = 'E'; buf[4] = 'R'; buf[5] = ' ';
-        buf[6] = 'B'; buf[7] = 'A'; buf[8] = 'N'; buf[9] = 'K'; buf[10] = ' ';
-        buf[11] = (char)('1' + smk_m.fader_bank);
-        buf[12] = 0;
-        smk_set_toast(buf);
+    char buf[20];
+    uint32_t p = 0;
+    while (*name && p < 10) buf[p++] = *name++;
+    buf[p++] = ' ';
+    buf[p++] = 'B'; buf[p++] = 'A'; buf[p++] = 'N'; buf[p++] = 'K'; buf[p++] = ' ';
+    buf[p++] = (char)('1' + bank);
+    buf[p++] = '/';
+    buf[p++] = (char)('0' + num_banks);
+    buf[p] = 0;
+    smk_set_toast(buf);
+}
+
+void smk_midi_handle_bank_btn(int btn_id, int pressed)
+{
+    if (btn_id < 0 || btn_id > 1) return;
+
+    if (pressed) {
+        bank_down[btn_id] = 1;
+        bank_down_ms[btn_id] = plat_ms();
+        bank_pending[btn_id] = 1;
+
+        /* Check simultaneous press of both Knob Bank and Fader Bank */
+        if (bank_down[0] && bank_down[1]) {
+            bank_combo_fired = 1;
+            bank_pending[0] = 0;
+            bank_pending[1] = 0;
+            smk_midi_toggle_pad_bank();
+            smk_show_bank_toast("PAD", smk_m.pad_bank, smk_m.num_pad_banks);
+        }
+    } else {
+        bank_down[btn_id] = 0;
+        if (bank_combo_fired) {
+            if (!bank_down[0] && !bank_down[1]) {
+                bank_combo_fired = 0;
+            }
+        } else if (bank_pending[btn_id]) {
+            /* Released quickly before 60ms delay expired: trigger single bank toggle */
+            bank_pending[btn_id] = 0;
+            if (btn_id == 0) {
+                smk_midi_toggle_knob_bank();
+                smk_show_bank_toast("KNOB", smk_m.knob_bank, smk_m.num_knob_banks);
+            } else {
+                smk_midi_toggle_fader_bank();
+                smk_show_bank_toast("FADER", smk_m.fader_bank, smk_m.num_fader_banks);
+            }
+        }
     }
 }
 
@@ -587,21 +609,62 @@ void smk_midi_handle_buttons(uint32_t buttons)
         return;
     }
 
-    /* OCT- (B_OCTDN, bit 12): "Quita lo de que se salga de las pantallas con octave-" */
+    /* OCT- (B_OCTDN, bit 12) */
     if (pressed & (1u << 12)) {
         if (smk_m.page == SMK_PAGE_GEN) {
             if (smk_m.octave > -3) smk_m.octave--;
             smk_set_toast("OCTAVE -");
-        } else {
-            if (smk_m.menu_depth > 0) {
-                smk_m.menu_depth = 0; /* Back to parent list */
+            return;
+        }
+
+        if (smk_m.menu_depth > 0) {
+            smk_m.menu_depth = 0; /* Back to parent list */
+            smk_set_toast("CANCELLED");
+            return;
+        }
+
+        /* In root menu (menu_depth == 0): OCT- turns toggles OFF or decrements TEMPO */
+        if (smk_m.page == SMK_PAGE_SCALE) {
+            if (smk_m.menu_sel[0] == 0) { smk_m.scale_on = 0; smk_set_toast("SCALE OFF"); }
+            else if (smk_m.menu_sel[0] == 3) {
+                if (smk_m.bpm > 40) smk_m.bpm--;
             }
-            /* Do not exit to General on OCT- */
+        } else if (smk_m.page == SMK_PAGE_CHORD) {
+            if (smk_m.menu_sel[0] == 0) { smk_m.chord_on = 0; smk_set_toast("CHORD OFF"); }
+            else if (smk_m.menu_sel[0] == 3) {
+                if (smk_m.bpm > 40) smk_m.bpm--;
+            }
+        } else if (smk_m.page == SMK_PAGE_ARP) {
+            if (smk_m.menu_sel[0] == 0) { smk_m.arp_on = 0; smk_set_toast("ARP OFF"); }
+            else if (smk_m.menu_sel[0] == 5) { smk_m.arp_latch = 0; smk_m.arp_hold = 0; smk_set_toast("LATCH OFF"); }
+            else if (smk_m.menu_sel[0] == 6) {
+                if (smk_m.bpm > 40) smk_m.bpm--;
+            }
+        } else if (smk_m.page == SMK_PAGE_NR) {
+            if (smk_m.menu_sel[0] == 0) { smk_m.nr_on = 0; smk_set_toast("REPEAT OFF"); }
+            else if (smk_m.menu_sel[0] == 3) {
+                if (smk_m.bpm > 40) smk_m.bpm--;
+            }
+        } else if (smk_m.page == SMK_PAGE_GLOBE) {
+            if (smk_m.menu_sel[0] == 1) { smk_m.pad_mode = 0; smk_set_toast("PADS: NOTES"); }
+            else if (smk_m.menu_sel[0] == 2) { smk_m.full_velocity = 0; smk_set_toast("FULL VEL OFF"); }
+            else if (smk_m.menu_sel[0] == 3) {
+                smk_m.four_banks = 0;
+                smk_m.num_knob_banks = 2;
+                smk_m.num_fader_banks = 2;
+                smk_m.num_pad_banks = 2;
+                smk_m.knob_bank %= 2;
+                smk_m.fader_bank %= 2;
+                smk_m.pad_bank %= 2;
+                smk_set_toast("4 BANKS OFF");
+            } else if (smk_m.menu_sel[0] == 8) {
+                if (smk_m.bpm > 40) smk_m.bpm--;
+            }
         }
         return;
     }
 
-    /* OCT+ (B_OCTUP, bit 13): "pasen a submenús a la derecha con oct+" / "oct+ para confirmar" */
+    /* OCT+ (B_OCTUP, bit 13) */
     if (pressed & (1u << 13)) {
         if (smk_m.page == SMK_PAGE_GEN) {
             if (smk_m.octave < 3) smk_m.octave++;
@@ -612,47 +675,58 @@ void smk_midi_handle_buttons(uint32_t buttons)
         if (smk_m.menu_depth == 0) {
             /* Handling top-level menu selections */
             if (smk_m.page == SMK_PAGE_SCALE) {
-                if (smk_m.menu_sel[0] == 0) smk_m.scale_on = !smk_m.scale_on;
-                else {
+                if (smk_m.menu_sel[0] == 0) { smk_m.scale_on = 1; smk_set_toast("SCALE ON"); }
+                else if (smk_m.menu_sel[0] == 3) {
+                    if (smk_m.bpm < 240) smk_m.bpm++;
+                } else {
                     smk_m.menu_depth = 1;
                     smk_m.menu_sel[1] = smk_m.menu_sel[0] == 1 ? smk_m.root : (smk_m.menu_sel[0] == 2 ? smk_m.scale : 0);
                     smk_m.menu_scroll[1] = 0;
-                    if (smk_m.menu_sel[0] == 3) smk_m.temp_val = (int16_t)smk_m.bpm;
                 }
             } else if (smk_m.page == SMK_PAGE_CHORD) {
-                if (smk_m.menu_sel[0] == 0) smk_m.chord_on = !smk_m.chord_on;
-                else {
+                if (smk_m.menu_sel[0] == 0) { smk_m.chord_on = 1; smk_set_toast("CHORD ON"); }
+                else if (smk_m.menu_sel[0] == 3) {
+                    if (smk_m.bpm < 240) smk_m.bpm++;
+                } else {
                     smk_m.menu_depth = 1;
                     smk_m.menu_sel[1] = smk_m.menu_sel[0] == 1 ? smk_m.chord_type : (smk_m.menu_sel[0] == 2 ? smk_m.chord_voic : 0);
                     smk_m.menu_scroll[1] = 0;
-                    if (smk_m.menu_sel[0] == 3) smk_m.temp_val = (int16_t)smk_m.bpm;
                 }
             } else if (smk_m.page == SMK_PAGE_ARP) {
-                if (smk_m.menu_sel[0] == 0) smk_m.arp_on = !smk_m.arp_on;
-                else if (smk_m.menu_sel[0] == 5) smk_m.arp_latch = !smk_m.arp_latch;
-                else {
+                if (smk_m.menu_sel[0] == 0) { smk_m.arp_on = 1; smk_set_toast("ARP ON"); }
+                else if (smk_m.menu_sel[0] == 5) { smk_m.arp_latch = 1; smk_m.arp_hold = 1; smk_set_toast("LATCH ON"); }
+                else if (smk_m.menu_sel[0] == 6) {
+                    if (smk_m.bpm < 240) smk_m.bpm++;
+                } else {
                     smk_m.menu_depth = 1;
                     smk_m.menu_sel[1] = 0;
                     smk_m.menu_scroll[1] = 0;
-                    if (smk_m.menu_sel[0] == 6) smk_m.temp_val = (int16_t)smk_m.bpm;
                 }
             } else if (smk_m.page == SMK_PAGE_NR) {
-                if (smk_m.menu_sel[0] == 0) smk_m.nr_on = !smk_m.nr_on;
-                else {
+                if (smk_m.menu_sel[0] == 0) { smk_m.nr_on = 1; smk_set_toast("REPEAT ON"); }
+                else if (smk_m.menu_sel[0] == 3) {
+                    if (smk_m.bpm < 240) smk_m.bpm++;
+                } else {
                     smk_m.menu_depth = 1;
                     smk_m.menu_sel[1] = 0;
                     smk_m.menu_scroll[1] = 0;
-                    if (smk_m.menu_sel[0] == 3) smk_m.temp_val = (int16_t)smk_m.bpm;
                 }
             } else if (smk_m.page == SMK_PAGE_GLOBE) {
-                if (smk_m.menu_sel[0] == 1) smk_m.pad_mode = !smk_m.pad_mode;
-                else if (smk_m.menu_sel[0] == 2) smk_m.full_velocity = !smk_m.full_velocity;
-                else {
+                if (smk_m.menu_sel[0] == 1) { smk_m.pad_mode = 1; smk_set_toast("PADS: CC"); }
+                else if (smk_m.menu_sel[0] == 2) { smk_m.full_velocity = 1; smk_set_toast("FULL VEL ON"); }
+                else if (smk_m.menu_sel[0] == 3) {
+                    smk_m.four_banks = 1;
+                    smk_m.num_knob_banks = 4;
+                    smk_m.num_fader_banks = 4;
+                    smk_m.num_pad_banks = 4;
+                    smk_set_toast("4 BANKS ON");
+                } else if (smk_m.menu_sel[0] == 8) {
+                    if (smk_m.bpm < 240) smk_m.bpm++;
+                } else {
                     smk_m.menu_depth = 1;
                     smk_m.menu_sel[1] = 0;
                     smk_m.menu_scroll[1] = 0;
                     if (smk_m.menu_sel[0] == 0) { smk_m.cc_learn_seen = 0; smk_m.cc_learn_val = 0; }
-                    if (smk_m.menu_sel[0] == 7) smk_m.temp_val = (int16_t)smk_m.bpm;
                 }
             }
         } else {
@@ -660,21 +734,17 @@ void smk_midi_handle_buttons(uint32_t buttons)
             if (smk_m.page == SMK_PAGE_SCALE) {
                 if (smk_m.menu_sel[0] == 1) smk_m.root = smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 2) smk_m.scale = smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 3) smk_m.bpm = (uint16_t)smk_m.temp_val;
             } else if (smk_m.page == SMK_PAGE_CHORD) {
                 if (smk_m.menu_sel[0] == 1) smk_m.chord_type = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 2) smk_m.chord_voic = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 3) smk_m.bpm = (uint16_t)smk_m.temp_val;
             } else if (smk_m.page == SMK_PAGE_ARP) {
                 if (smk_m.menu_sel[0] == 1) smk_m.arp_mode = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 2) smk_m.arp_rate = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 3) smk_m.arp_oct = (uint8_t)(smk_m.menu_sel[1] + 1);
                 else if (smk_m.menu_sel[0] == 4) smk_m.arp_gate = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 6) smk_m.bpm = (uint16_t)smk_m.temp_val;
             } else if (smk_m.page == SMK_PAGE_NR) {
                 if (smk_m.menu_sel[0] == 1) smk_m.nr_rate = (uint8_t)smk_m.menu_sel[1];
                 else if (smk_m.menu_sel[0] == 2) smk_m.nr_gate = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 3) smk_m.bpm = (uint16_t)smk_m.temp_val;
             } else if (smk_m.page == SMK_PAGE_GLOBE) {
                 if (smk_m.menu_sel[0] == 0) {
                     /* Save learned CC */
@@ -684,10 +754,9 @@ void smk_midi_handle_buttons(uint32_t buttons)
                         else if (smk_m.cc_learn_target == 2) smk_m.pad_cc[smk_m.cc_learn_idx] = smk_m.cc_learn_val;
                         smk_set_toast("CC SAVED");
                     }
-                } else if (smk_m.menu_sel[0] == 3) smk_m.key_vel_curve = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 4) smk_m.pad_sens = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 5) smk_m.knob_speed = (uint8_t)smk_m.menu_sel[1];
-                else if (smk_m.menu_sel[0] == 7) smk_m.bpm = (uint16_t)smk_m.temp_val;
+                } else if (smk_m.menu_sel[0] == 4) smk_m.key_vel_curve = (uint8_t)smk_m.menu_sel[1];
+                else if (smk_m.menu_sel[0] == 5) smk_m.pad_sens = (uint8_t)smk_m.menu_sel[1];
+                else if (smk_m.menu_sel[0] == 6) smk_m.knob_speed = (uint8_t)smk_m.menu_sel[1];
             }
             smk_m.menu_depth = 0;
             smk_set_toast("CONFIRMED");
@@ -703,6 +772,23 @@ void smk_midi_step_ms(void)
 
     if (!smk_m.active) return;
     uint32_t now = plat_ms();
+
+    /* Check pending single bank button timers (60ms) */
+    uint32_t bi;
+    for (bi = 0; bi < 2u; bi++) {
+        if (bank_pending[bi] && !bank_combo_fired) {
+            if (now - bank_down_ms[bi] >= 60u) {
+                bank_pending[bi] = 0;
+                if (bi == 0) {
+                    smk_midi_toggle_knob_bank();
+                    smk_show_bank_toast("KNOB", smk_m.knob_bank, smk_m.num_knob_banks);
+                } else {
+                    smk_midi_toggle_fader_bank();
+                    smk_show_bank_toast("FADER", smk_m.fader_bank, smk_m.num_fader_banks);
+                }
+            }
+        }
+    }
 
     /* Note Repeat momentary trigger check (hold >= 200ms from OFF) */
     if (smk_m.nr_btn_down && smk_m.nr_was_off && !smk_m.nr_momentary_active) {
@@ -792,6 +878,21 @@ void smk_midi_step_ms(void)
     if (smk_m.chord_on) leds |= (1u << 3); /* B_LFO */
     if (smk_m.arp_on)   leds |= (1u << 8); /* B_ARP */
     if (smk_m.nr_on)    leds |= (1u << 1); /* B_SEL */
+
+    /* Gradual Bank button LED brightness according to bank */
+    uint32_t phase = (now / 4u) % 4u;
+    if (smk_m.four_banks) {
+        if (smk_m.knob_bank == 1 && phase == 0) leds |= (1u << 16);
+        else if (smk_m.knob_bank == 2 && (phase & 1u) == 0) leds |= (1u << 16);
+        else if (smk_m.knob_bank >= 3) leds |= (1u << 16);
+
+        if (smk_m.fader_bank == 1 && phase == 0) leds |= (1u << 17);
+        else if (smk_m.fader_bank == 2 && (phase & 1u) == 0) leds |= (1u << 17);
+        else if (smk_m.fader_bank >= 3) leds |= (1u << 17);
+    } else {
+        if (smk_m.knob_bank >= 1) leds |= (1u << 16);
+        if (smk_m.fader_bank >= 1) leds |= (1u << 17);
+    }
 
     plat_leds(leds, plat_keys());
 }

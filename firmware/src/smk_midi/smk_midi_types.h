@@ -92,6 +92,7 @@ typedef struct {
     /* Globe / Hardware Settings */
     uint8_t pad_mode;           /* 0: NOTES, 1: CC */
     uint8_t full_velocity;      /* 0: OFF, 1: ON (fixed 127) */
+    uint8_t four_banks;         /* 0: 2 banks (default), 1: 4 banks */
     uint8_t key_vel_curve;      /* 0: NORMAL, 1: SOFT, 2: HARD */
     uint8_t pad_sens;           /* 0: NORMAL, 1: LOW, 2: HIGH */
     uint8_t knob_speed;         /* 0: NORMAL, 1: SLOW, 2: FAST */
@@ -145,7 +146,8 @@ void smk_midi_handle_key_up(uint32_t key);
 void smk_midi_handle_encoder(int role, int32_t delta);
 void smk_midi_handle_fader(uint32_t id, uint32_t val);
 void smk_midi_handle_pad(uint32_t id, uint32_t val);
-void smk_midi_handle_bank_btn(int btn_id);
+void smk_midi_handle_bank_btn(int btn_id, int pressed);
+void smk_midi_send_msg(uint32_t st, uint32_t d1, uint32_t d2);
 void smk_midi_handle_buttons(uint32_t buttons);
 void smk_midi_step_ms(void);
 void smk_midi_paint(void);
