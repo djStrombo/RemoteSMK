@@ -27,12 +27,12 @@ enum {
 
 /* Chord Types */
 enum {
-    CH_TYPE_TRIAD = 0, /* TRIADA */
+    CH_TYPE_TRIAD = 0, /* TRIAD */
     CH_TYPE_7TH,       /* 7TH */
     CH_TYPE_9TH,       /* 9TH */
     CH_TYPE_5TH,       /* 5TH (POWER) */
     CH_TYPE_SUS4,      /* SUS4 */
-    CH_TYPE_OCT,       /* OCTAVA */
+    CH_TYPE_OCT,       /* OCTAVE */
     CH_TYPE_COUNT
 };
 

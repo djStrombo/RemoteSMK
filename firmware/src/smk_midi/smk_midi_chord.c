@@ -16,7 +16,7 @@ enum {
 #define CHORD_MAX 4u
 
 static const char *const SMK_CHORD_NAMES[CH_TYPE_COUNT] = {
-    "TRIADA", "7TH", "9TH", "5TH (POWER)", "SUS4", "OCTAVA"
+    "TRIAD", "7TH", "9TH", "5TH (POWER)", "SUS4", "OCTAVE"
 };
 
 static const char *const SMK_VOIC_NAMES[VC_COUNT] = {
