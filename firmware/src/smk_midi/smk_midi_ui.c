@@ -35,6 +35,40 @@ static void smk_ui_format_note(char *dst, uint32_t note)
     *dst = 0;
 }
 
+static char *smk_ui_put_str(char *d, const char *s)
+{
+    while (*s) *d++ = *s++;
+    *d = 0;
+    return d;
+}
+
+static char *smk_ui_put_u2(char *d, uint32_t v)
+{
+    *d++ = (char)('0' + (v / 10u) % 10u);
+    *d++ = (char)('0' + v % 10u);
+    *d = 0;
+    return d;
+}
+
+static char *smk_ui_put_u3(char *d, uint32_t v)
+{
+    if (v >= 100u) {
+        *d++ = (char)('0' + v / 100u);
+        *d++ = (char)('0' + (v % 100u) / 10u);
+        *d++ = (char)('0' + v % 10u);
+    } else if (v >= 10u) {
+        *d++ = ' ';
+        *d++ = (char)('0' + v / 10u);
+        *d++ = (char)('0' + v % 10u);
+    } else {
+        *d++ = ' ';
+        *d++ = ' ';
+        *d++ = (char)('0' + v);
+    }
+    *d = 0;
+    return d;
+}
+
 /* Forward declarations of sa_gfx primitives */
 static void sg_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
 static void sg_chip(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
@@ -133,7 +167,8 @@ static void smk_ui_draw_general(void)
         sg_text(12, 118, 1, "NOTE PLAYED:", CLR_DIM);
         sg_text(12, 134, 2, smk_m.last_note_name, CLR_INK);
         char vbuf[16];
-        snprintf(vbuf, sizeof(vbuf), "VEL: %u", (unsigned)smk_m.last_note_vel);
+        char *p = smk_ui_put_str(vbuf, "VEL: ");
+        p = smk_ui_put_u3(p, smk_m.last_note_vel);
         sg_text(12, 152, 1, vbuf, CLR_DIM);
     } else {
         sg_text(12, 122, 1, "NOTE / CHORD:", CLR_DIM);
@@ -149,35 +184,67 @@ static void smk_ui_draw_general(void)
         case SMK_HUD_KNOB: {
             sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
             char hbuf[20];
-            snprintf(hbuf, sizeof(hbuf), "KNOB K%u  (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            char *p = smk_ui_put_str(hbuf, "KNOB K");
+            *p++ = (char)('1' + smk_m.last_ctrl_id);
+            p = smk_ui_put_str(p, "  (B");
+            *p++ = (char)('1' + smk_m.last_ctrl_bank);
+            *p++ = ')'; *p = 0;
             sg_text(124, 134, 2, hbuf, CLR_INK);
-            char vbuf[20];
-            snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+
+            char vbuf[24];
+            p = smk_ui_put_str(vbuf, "CC:");
+            p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
+            p = smk_ui_put_str(p, " VAL:");
+            p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
             sg_text(124, 152, 1, vbuf, CLR_INK);
             break;
         }
         case SMK_HUD_FADER: {
             sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
             char hbuf[20];
-            snprintf(hbuf, sizeof(hbuf), "FADER F%u (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            char *p = smk_ui_put_str(hbuf, "FADER F");
+            *p++ = (char)('1' + smk_m.last_ctrl_id);
+            p = smk_ui_put_str(p, " (B");
+            *p++ = (char)('1' + smk_m.last_ctrl_bank);
+            *p++ = ')'; *p = 0;
             sg_text(124, 134, 2, hbuf, CLR_INK);
-            char vbuf[20];
-            snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+
+            char vbuf[24];
+            p = smk_ui_put_str(vbuf, "CC:");
+            p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
+            p = smk_ui_put_str(p, " VAL:");
+            p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
             sg_text(124, 152, 1, vbuf, CLR_INK);
             break;
         }
         case SMK_HUD_PAD: {
             sg_text(124, 118, 1, "PAD HIT:", CLR_DIM);
             char hbuf[20];
-            snprintf(hbuf, sizeof(hbuf), "PAD P%u  (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            char *p = smk_ui_put_str(hbuf, "PAD P");
+            if (smk_m.last_ctrl_id + 1 >= 10) {
+                p = smk_ui_put_u2(p, smk_m.last_ctrl_id + 1);
+            } else {
+                *p++ = (char)('1' + smk_m.last_ctrl_id);
+            }
+            p = smk_ui_put_str(p, "  (B");
+            *p++ = (char)('1' + smk_m.last_ctrl_bank);
+            *p++ = ')'; *p = 0;
             sg_text(124, 134, 2, hbuf, CLR_INK);
+
             char vbuf[24];
             if (smk_m.last_ctrl_sub == 0) {
                 char nstr[12];
                 smk_ui_format_note(nstr, smk_m.last_ctrl_cc);
-                snprintf(vbuf, sizeof(vbuf), "NOTE:%-3s V:%-3u", nstr, (unsigned)smk_m.last_ctrl_val);
+                p = smk_ui_put_str(vbuf, "NOTE:");
+                p = smk_ui_put_str(p, nstr);
+                while (p < vbuf + 9) *p++ = ' ';
+                p = smk_ui_put_str(p, " V:");
+                p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
             } else {
-                snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+                p = smk_ui_put_str(vbuf, "CC:");
+                p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
+                p = smk_ui_put_str(p, " VAL:");
+                p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
             }
             sg_text(124, 152, 1, vbuf, CLR_INK);
             break;
@@ -192,9 +259,16 @@ static void smk_ui_draw_general(void)
     } else {
         sg_text(124, 118, 1, "MIDI CHANNELS:", CLR_DIM);
         char ch1[24], ch2[24];
-        snprintf(ch1, sizeof(ch1), "KBD:%02u   KNB:%02u", (unsigned)smk_m.ch_keyboard, (unsigned)smk_m.ch_knobs);
-        snprintf(ch2, sizeof(ch2), "FDR:%02u   PAD:%02u", (unsigned)smk_m.ch_faders, (unsigned)smk_m.ch_pads);
+        char *p = smk_ui_put_str(ch1, "KBD:");
+        p = smk_ui_put_u2(p, smk_m.ch_keyboard);
+        p = smk_ui_put_str(p, "   KNB:");
+        p = smk_ui_put_u2(p, smk_m.ch_knobs);
         sg_text(124, 134, 1, ch1, CLR_INK);
+
+        p = smk_ui_put_str(ch2, "FDR:");
+        p = smk_ui_put_u2(p, smk_m.ch_faders);
+        p = smk_ui_put_str(p, "   PAD:");
+        p = smk_ui_put_u2(p, smk_m.ch_pads);
         sg_text(124, 150, 1, ch2, CLR_INK);
     }
 
@@ -203,21 +277,29 @@ static void smk_ui_draw_general(void)
 
     /* Line 1: Engines */
     char ebuf[40];
-    snprintf(ebuf, sizeof(ebuf), "SCL:%s  CHD:%s  ARP:%s  REP:%s",
-             smk_m.scale_on ? "ON" : "--",
-             smk_m.chord_on ? "ON" : "--",
-             smk_m.arp_on ? "ON" : "--",
-             smk_m.nr_on ? "ON" : "--");
+    char *p = smk_ui_put_str(ebuf, "SCL:");
+    p = smk_ui_put_str(p, smk_m.scale_on ? "ON " : "-- ");
+    p = smk_ui_put_str(p, " CHD:");
+    p = smk_ui_put_str(p, smk_m.chord_on ? "ON " : "-- ");
+    p = smk_ui_put_str(p, " ARP:");
+    p = smk_ui_put_str(p, smk_m.arp_on ? "ON " : "-- ");
+    p = smk_ui_put_str(p, " REP:");
+    p = smk_ui_put_str(p, smk_m.nr_on ? "ON" : "--");
     sg_text(12, 174, 1, ebuf, CLR_INK);
 
     /* Line 2: Banks */
     char max_b = smk_m.four_banks ? '4' : '2';
     char bbuf[44];
-    snprintf(bbuf, sizeof(bbuf), "KNB:B%u/%c FDR:B%u/%c PAD:B%u/%c [%s]",
-             (unsigned)(smk_m.knob_bank + 1), max_b,
-             (unsigned)(smk_m.fader_bank + 1), max_b,
-             (unsigned)(smk_m.pad_bank + 1), max_b,
-             smk_m.pad_mode == 0 ? "NOTES" : "CC");
+    p = smk_ui_put_str(bbuf, "KNB:B");
+    *p++ = (char)('1' + smk_m.knob_bank);
+    *p++ = '/'; *p++ = max_b;
+    p = smk_ui_put_str(p, " FDR:B");
+    *p++ = (char)('1' + smk_m.fader_bank);
+    *p++ = '/'; *p++ = max_b;
+    p = smk_ui_put_str(p, " PAD:B");
+    *p++ = (char)('1' + smk_m.pad_bank);
+    *p++ = '/'; *p++ = max_b;
+    p = smk_ui_put_str(p, smk_m.pad_mode == 0 ? " [NOTES]" : " [CC]");
     sg_text(12, 192, 1, bbuf, CLR_DIM);
 
     /* Bottom navigation shortcuts */
