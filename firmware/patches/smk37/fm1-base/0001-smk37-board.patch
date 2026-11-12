@@ -294,7 +294,7 @@
  const uint8_t *plat_chip_uid(void) { return flash_ok ? flash_uid : 0; }
 --- a/device/plat_smk37.c
 +++ b/device/plat_smk37.c
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,147 @@
 +/* SPDX-License-Identifier: MPL-2.0
 + * Copyright (C) 2026 RemoteFM1 contributors */
 +/* fm1-base on the M-VAVE SMK-37 (BOARD_SMK37): plat.h's panel on felucca-bsp's boards/smk37 scan, through
@@ -361,6 +361,14 @@
 +static uint32_t plat_remote_keys(void) { return remote.keys; }
 +static uint8_t plat_smk_vel(uint32_t k) { return smk_fm1_vel(k); }   /* lib/touch (touch_smk.c) */
 +
++extern uint8_t smk_session_suspended;
++int32_t plat_smk_enc(uint32_t k)
++{
++    if (k >= 8u)
++        return 0;
++    return smk_enc_take(k);
++}
++
 +int32_t plat_enc(int role)
 +{
 +    int32_t r;
@@ -370,11 +378,13 @@
 +        return 0;
 +    r = remote.enc[role];
 +    remote.enc[role] = 0;
-+    target = smk_role_to_act(role);
-+    if (target >= 0) {
-+        for (k = 0; k < 8u; k++) {
-+            if (smk_live_encs[k] == (uint8_t)target)
-+                r += smk_enc_take(k);
++    if (!smk_session_suspended) {
++        target = smk_role_to_act(role);
++        if (target >= 0) {
++            for (k = 0; k < 8u; k++) {
++                if (smk_live_encs[k] == (uint8_t)target)
++                    r += smk_enc_take(k);
++            }
 +        }
 +    }
 +    r += smk_panel_enc(role) + mirror_in_enc(role);
@@ -391,13 +401,15 @@
 +{
 +    int32_t d = 0;
 +    uint32_t k;
-+    for (k = 0; k < 8u; k++) {
-+        if (smk_live_encs[k] == 7u)
-+            d += smk_enc_take(k);
-+    }
-+    if (d) {
-+        smk_master += d * SMK_MASTER_STEP;
-+        smk_master = smk_master < 0 ? 0 : smk_master > 4096 ? 4096 : smk_master;
++    if (!smk_session_suspended) {
++        for (k = 0; k < 8u; k++) {
++            if (smk_live_encs[k] == 7u)
++                d += smk_enc_take(k);
++        }
++        if (d) {
++            smk_master += d * SMK_MASTER_STEP;
++            smk_master = smk_master < 0 ? 0 : smk_master > 4096 ? 4096 : smk_master;
++        }
 +    }
 +    master_pos = mirror_in_master(remote.master >= 0 ? (uint32_t)remote.master : (uint32_t)smk_master);
 +}
@@ -1043,7 +1055,7 @@
  #include "btdev.c"                /* Bluetooth MIDI devices for an app's page (lib/btdev.h) */
 --- a/host/plat_host.c
 +++ b/host/plat_host.c
-@@ -156,17 +156,59 @@
+@@ -156,17 +156,69 @@
  static void mirror_enc(int role, int32_t n) { (void)role, (void)n; }
  static void mirror_leds(uint32_t buttons, uint32_t keys) { (void)buttons, (void)keys; }
  #endif
@@ -1075,17 +1087,26 @@
 +    smk_sim.enc[e] = 0;
 +    return v;
 +}
++extern uint8_t smk_session_suspended;
++int32_t plat_smk_enc(uint32_t k)
++{
++    if (k >= 8u)
++        return 0;
++    return smk_sim_enc(k);
++}
 +#define SMK_SIM_BUTTONS() smk_fm1_buttons(smk_sim.r.btns)
 +#define SMK_SIM_KEYS() (smk_panel_poll(), smk_fm1_keys())
 +static int32_t smk_sim_enc_role(int role)
 +{
 +    int32_t v = 0;
 +    uint32_t k;
-+    int target = smk_role_to_act(role);
-+    if (target >= 0) {
-+        for (k = 0; k < 8u; k++) {
-+            if (smk_live_encs[k] == (uint8_t)target)
-+                v += smk_sim_enc(k);
++    if (!smk_session_suspended) {
++        int target = smk_role_to_act(role);
++        if (target >= 0) {
++            for (k = 0; k < 8u; k++) {
++                if (smk_live_encs[k] == (uint8_t)target)
++                    v += smk_sim_enc(k);
++            }
 +        }
 +    }
 +    return v + smk_panel_enc(role);
@@ -1095,6 +1116,7 @@
 +#define SMK_SIM_BUTTONS() 0u
 +#define SMK_SIM_KEYS() 0u
 +#define SMK_SIM_ENC(role) 0
++#define plat_smk_enc(k) 0
 +#endif
 +uint32_t plat_buttons(void) { return held_btn | SMK_SIM_BUTTONS() | mirror_in_buttons(); }   /* (+ the host's: the mirror's remote) */
 +uint32_t plat_keys(void) { return held_keys | SMK_SIM_KEYS() | mirror_in_keys(); }
@@ -1452,7 +1474,7 @@
  static inline int plat_in(uint32_t off, uint32_t n, uint32_t lo, uint32_t hi)   /* [off, off + n) in [lo, hi) */
  {
      return off >= lo && off <= hi && n <= hi - off;
-@@ -231,6 +250,35 @@
+@@ -231,6 +250,36 @@
   * ends with OBJ_NOBJ, and APP_STORE_MAP, each object's flash offset: two 4 KiB sectors (A/B) from there, inside the
   * data area (0x97000..0xDFFFF) or Felucca's settings sector pair at 0xFC000. An object's number is written in its
   * record, so an app keeps its numbering from one release to the next. */
@@ -1473,6 +1495,7 @@
 +int plat_smk_take(plat_smk_ev_t *e);   /* 1: the next change in e; 0: none (main loop; the wheels and the pedal
 +                                        * give their latest only) */
 +int plat_smk_level(int type);          /* where a wheel or the pedal is now */
++int32_t plat_smk_enc(uint32_t k);      /* detents of physical knob k (0..7) taken */
 +/* the faders as KNOB 1..4: TURN4 (the start) a detent every 4 steps of 0..127, TURN1 a detent a step, ABS their
 + * positions as PLAT_SMK_FADER (the latest only), no turn. A switch starts from where each fader is: nothing sent for
 + * the moves before it */

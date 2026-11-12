@@ -21,6 +21,20 @@ static const char *const SMK_GATE_NAMES[4] = {
     "25%", "50%", "75%", "100%"
 };
 
+static void smk_ui_format_note(char *dst, uint32_t note)
+{
+    const char *rname = SMK_ROOT_NAMES[note % 12u];
+    int oct = ((int)note / 12) - 1;
+    while (*rname) *dst++ = *rname++;
+    if (oct < 0) {
+        *dst++ = '-';
+        *dst++ = (char)('0' + (-oct));
+    } else {
+        *dst++ = (char)('0' + oct);
+    }
+    *dst = 0;
+}
+
 /* Forward declarations of sa_gfx primitives */
 static void sg_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
 static void sg_chip(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
@@ -104,50 +118,107 @@ static void smk_ui_draw_general(void)
         }
     }
 
-    /* Played Note & Detected Chord Section */
+    /* Split Section: Left = Note / Chord; Right = Live Control HUD / Channels */
     sg_rect(10, 114, 220, 1, CLR_BORDER);
+    sg_rect(118, 114, 1, 52, CLR_BORDER);
 
+    /* Left side (x = 12..114) */
     if (smk_m.chord_name[0]) {
-        sg_text(12, 122, 1, "DETECTED CHORD:", CLR_DIM);
-        sg_text(12, 138, 2, smk_m.chord_name, CLR_INK);
+        sg_text(12, 118, 1, "CHORD DETECT:", CLR_DIM);
+        sg_text(12, 134, 2, smk_m.chord_name, CLR_INK);
+        if (smk_m.last_note_name[0]) {
+            sg_text(12, 152, 1, smk_m.last_note_name, CLR_DIM);
+        }
     } else if (smk_m.last_note_name[0]) {
-        sg_text(12, 122, 1, "NOTE PLAYED:", CLR_DIM);
-        sg_text(12, 138, 2, smk_m.last_note_name, CLR_INK);
+        sg_text(12, 118, 1, "NOTE PLAYED:", CLR_DIM);
+        sg_text(12, 134, 2, smk_m.last_note_name, CLR_INK);
+        char vbuf[16];
+        snprintf(vbuf, sizeof(vbuf), "VEL: %u", (unsigned)smk_m.last_note_vel);
+        sg_text(12, 152, 1, vbuf, CLR_DIM);
     } else {
-        sg_text(12, 132, 1, "-- READY TO PLAY --", CLR_DIM);
+        sg_text(12, 122, 1, "NOTE / CHORD:", CLR_DIM);
+        sg_text(12, 140, 1, "-- READY --", CLR_DIM);
+    }
+
+    /* Right side (x = 124..238) */
+    uint32_t now = plat_ms();
+    int show_hud = (smk_m.last_ctrl_ms > 0 && (now - smk_m.last_ctrl_ms) < 2000u && smk_m.last_ctrl_type != SMK_HUD_NONE);
+
+    if (show_hud) {
+        switch (smk_m.last_ctrl_type) {
+        case SMK_HUD_KNOB: {
+            sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
+            char hbuf[20];
+            snprintf(hbuf, sizeof(hbuf), "KNOB K%u  (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            sg_text(124, 134, 2, hbuf, CLR_INK);
+            char vbuf[20];
+            snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+            sg_text(124, 152, 1, vbuf, CLR_INK);
+            break;
+        }
+        case SMK_HUD_FADER: {
+            sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
+            char hbuf[20];
+            snprintf(hbuf, sizeof(hbuf), "FADER F%u (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            sg_text(124, 134, 2, hbuf, CLR_INK);
+            char vbuf[20];
+            snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+            sg_text(124, 152, 1, vbuf, CLR_INK);
+            break;
+        }
+        case SMK_HUD_PAD: {
+            sg_text(124, 118, 1, "PAD HIT:", CLR_DIM);
+            char hbuf[20];
+            snprintf(hbuf, sizeof(hbuf), "PAD P%u  (B%u)", (unsigned)(smk_m.last_ctrl_id + 1), (unsigned)(smk_m.last_ctrl_bank + 1));
+            sg_text(124, 134, 2, hbuf, CLR_INK);
+            char vbuf[24];
+            if (smk_m.last_ctrl_sub == 0) {
+                char nstr[12];
+                smk_ui_format_note(nstr, smk_m.last_ctrl_cc);
+                snprintf(vbuf, sizeof(vbuf), "NOTE:%-3s V:%-3u", nstr, (unsigned)smk_m.last_ctrl_val);
+            } else {
+                snprintf(vbuf, sizeof(vbuf), "CC:%-3u VAL:%-3u", (unsigned)smk_m.last_ctrl_cc, (unsigned)smk_m.last_ctrl_val);
+            }
+            sg_text(124, 152, 1, vbuf, CLR_INK);
+            break;
+        }
+        case SMK_HUD_TOAST: {
+            sg_text(124, 118, 1, "STATUS / ACTION:", CLR_DIM);
+            sg_text(124, 136, 1, smk_m.last_ctrl_text, CLR_INK);
+            break;
+        }
+        default: break;
+        }
+    } else {
+        sg_text(124, 118, 1, "MIDI CHANNELS:", CLR_DIM);
+        char ch1[24], ch2[24];
+        snprintf(ch1, sizeof(ch1), "KBD:%02u   KNB:%02u", (unsigned)smk_m.ch_keyboard, (unsigned)smk_m.ch_knobs);
+        snprintf(ch2, sizeof(ch2), "FDR:%02u   PAD:%02u", (unsigned)smk_m.ch_faders, (unsigned)smk_m.ch_pads);
+        sg_text(124, 134, 1, ch1, CLR_INK);
+        sg_text(124, 150, 1, ch2, CLR_INK);
     }
 
     /* Status Summary */
     sg_rect(10, 166, 220, 1, CLR_BORDER);
 
     /* Line 1: Engines */
-    buf[0] = 'S'; buf[1] = 'C'; buf[2] = 'L'; buf[3] = ':';
-    buf[4] = smk_m.scale_on ? 'O' : 'X';
-    buf[5] = smk_m.scale_on ? 'N' : ' ';
-    buf[6] = ' '; buf[7] = 'C'; buf[8] = 'H'; buf[9] = 'D'; buf[10] = ':';
-    buf[11] = smk_m.chord_on ? 'O' : 'X';
-    buf[12] = smk_m.chord_on ? 'N' : ' ';
-    buf[13] = ' '; buf[14] = 'A'; buf[15] = 'R'; buf[16] = 'P'; buf[17] = ':';
-    buf[18] = smk_m.arp_on ? 'O' : 'X';
-    buf[19] = smk_m.arp_on ? 'N' : ' ';
-    buf[20] = 0;
-    sg_text(12, 174, 1, buf, CLR_INK);
+    char ebuf[40];
+    snprintf(ebuf, sizeof(ebuf), "SCL:%s  CHD:%s  ARP:%s  REP:%s",
+             smk_m.scale_on ? "ON" : "--",
+             smk_m.chord_on ? "ON" : "--",
+             smk_m.arp_on ? "ON" : "--",
+             smk_m.nr_on ? "ON" : "--");
+    sg_text(12, 174, 1, ebuf, CLR_INK);
 
     /* Line 2: Banks */
     char max_b = smk_m.four_banks ? '4' : '2';
-    buf[0] = 'K'; buf[1] = 'N'; buf[2] = 'B'; buf[3] = ':'; buf[4] = 'B';
-    buf[5] = (char)('1' + smk_m.knob_bank);
-    buf[6] = '/'; buf[7] = max_b;
-    buf[8] = ' '; buf[9] = ' ';
-    buf[10] = 'F'; buf[11] = 'D'; buf[12] = 'R'; buf[13] = ':'; buf[14] = 'B';
-    buf[15] = (char)('1' + smk_m.fader_bank);
-    buf[16] = '/'; buf[17] = max_b;
-    buf[18] = ' '; buf[19] = ' ';
-    buf[20] = 'P'; buf[21] = 'A'; buf[22] = 'D'; buf[23] = ':'; buf[24] = 'B';
-    buf[25] = (char)('1' + smk_m.pad_bank);
-    buf[26] = '/'; buf[27] = max_b;
-    buf[28] = 0;
-    sg_text(12, 192, 1, buf, CLR_DIM);
+    char bbuf[44];
+    snprintf(bbuf, sizeof(bbuf), "KNB:B%u/%c FDR:B%u/%c PAD:B%u/%c [%s]",
+             (unsigned)(smk_m.knob_bank + 1), max_b,
+             (unsigned)(smk_m.fader_bank + 1), max_b,
+             (unsigned)(smk_m.pad_bank + 1), max_b,
+             smk_m.pad_mode == 0 ? "NOTES" : "CC");
+    sg_text(12, 192, 1, bbuf, CLR_DIM);
 
     /* Bottom navigation shortcuts */
     sg_rect(0, 214, 240, 1, CLR_INK);
@@ -452,11 +523,5 @@ void smk_midi_paint(void)
     case SMK_PAGE_NR:     smk_ui_draw_nr(); break;
     case SMK_PAGE_GLOBE:  smk_ui_draw_globe(); break;
     default:              smk_ui_draw_general(); break;
-    }
-
-    /* Floating Toast Notification if active */
-    if (smk_m.toast_ms > 0 && smk_m.toast[0]) {
-        sg_rect(10, 4, 220, 24, CLR_INK);
-        sg_text(16, 8, 1, smk_m.toast, CLR_BG);
     }
 }

@@ -119,6 +119,16 @@ typedef struct {
     uint8_t cc_learn_val;       /* Temporary CC */
     uint8_t cc_learn_seen;      /* 1 if control moved */
 
+    /* Live Control HUD on General screen */
+    uint8_t  last_ctrl_type;    /* 0: None, 1: Knob, 2: Fader, 3: Pad, 4: Toast */
+    uint8_t  last_ctrl_id;      /* Control ID (0..7 for knob, 0..3 for fader, 0..15 for pad) */
+    uint8_t  last_ctrl_bank;    /* Active bank of touched control */
+    uint8_t  last_ctrl_cc;      /* CC number or note number */
+    uint8_t  last_ctrl_val;     /* CC value or velocity */
+    uint8_t  last_ctrl_sub;     /* Submode (e.g. pad mode: 0=NOTES, 1=CC) */
+    uint32_t last_ctrl_ms;      /* Timestamp of movement */
+    char     last_ctrl_text[24];/* Text for TOAST / actions */
+
     /* General screen state */
     uint16_t held_pitch_mask;   /* Bits 0..11 for held pitch classes */
     uint8_t  held_keys_cnt;
@@ -127,6 +137,14 @@ typedef struct {
     char     last_note_name[12];
     char     chord_name[24];
 } smk_midi_state_t;
+
+enum {
+    SMK_HUD_NONE = 0,
+    SMK_HUD_KNOB,
+    SMK_HUD_FADER,
+    SMK_HUD_PAD,
+    SMK_HUD_TOAST
+};
 
 extern smk_midi_state_t smk_m;
 extern uint8_t smk_session_suspended;
@@ -137,6 +155,8 @@ void smk_midi_toggle_mode(void);
 int  smk_check_octave_hold(uint32_t buttons);
 void smk_midi_handle_key_down(uint32_t key, uint32_t vel);
 void smk_midi_handle_key_up(uint32_t key);
+void smk_midi_handle_knob(uint32_t k_idx, int32_t delta);
+void smk_record_hud_ctrl(uint8_t type, uint8_t id, uint8_t bank, uint8_t cc, uint8_t val, uint8_t sub);
 void smk_midi_handle_encoder(int role, int32_t delta);
 void smk_midi_handle_fader(uint32_t id, uint32_t val);
 void smk_midi_handle_pad(uint32_t id, uint32_t val);

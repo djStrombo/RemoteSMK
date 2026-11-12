@@ -664,7 +664,7 @@ diff -ruN fw_orig/src/rfm_main.c fw_work/src/rfm_main.c
  /* ------------------------------------------------------------------ the panel, once a millisecond --- */
  static uint32_t rf_usb_resets_seen;
  static uint8_t rf_ble_was;
-@@ -1084,6 +1164,33 @@
+@@ -1084,6 +1164,35 @@
          steps[RF_ENC_OF_ROLE[e]] += roles[e];
      }
      sa_ms(lb, roles);                               /* standalone: the instrument; panel mode: its timeout */
@@ -689,9 +689,11 @@ diff -ruN fw_orig/src/rfm_main.c fw_work/src/rfm_main.c
 +    smk_midi_step_ms();
 +    if (smk_m.active) {
 +        smk_midi_handle_buttons(lb);
-+        for (e = 0; e < NE; e++) {
-+            if (roles[e]) smk_midi_handle_encoder((int)e, roles[e]);
++        for (e = 0; e < 8u; e++) {
++            int32_t d = plat_smk_enc(e);
++            if (d) smk_midi_handle_knob(e, d);
 +        }
++        if (roles[EN_SELECT]) smk_midi_handle_encoder(0, roles[EN_SELECT]);
 +    }
 +    rf_smk_ms();                                    /* the SMK-37's extra controls */
 +#endif

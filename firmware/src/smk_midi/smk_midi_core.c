@@ -42,6 +42,17 @@ static inline void smk_midi_send_cc(uint32_t ch, uint32_t cc, uint32_t val)
     smk_midi_send_msg(0xB0u | (ch & 0x0Fu), cc & 0x7Fu, val & 0x7Fu);
 }
 
+void smk_record_hud_ctrl(uint8_t type, uint8_t id, uint8_t bank, uint8_t cc, uint8_t val, uint8_t sub)
+{
+    smk_m.last_ctrl_type = type;
+    smk_m.last_ctrl_id = id;
+    smk_m.last_ctrl_bank = bank;
+    smk_m.last_ctrl_cc = cc;
+    smk_m.last_ctrl_val = val;
+    smk_m.last_ctrl_sub = sub;
+    smk_m.last_ctrl_ms = plat_ms();
+}
+
 static void smk_set_toast(const char *msg)
 {
     uint32_t i;
@@ -50,6 +61,13 @@ static void smk_set_toast(const char *msg)
     }
     smk_m.toast[i] = 0;
     smk_m.toast_ms = 60; /* ~1.5 seconds */
+
+    smk_m.last_ctrl_type = SMK_HUD_TOAST;
+    smk_m.last_ctrl_ms = plat_ms();
+    for (i = 0; i < sizeof(smk_m.last_ctrl_text) - 1u && msg[i]; i++) {
+        smk_m.last_ctrl_text[i] = msg[i];
+    }
+    smk_m.last_ctrl_text[i] = 0;
 }
 
 /* Toggle between Synth/Emulator and Dedicated MIDI Controller Mode */
@@ -363,36 +381,36 @@ void smk_midi_handle_encoder(int role, int32_t delta)
         return;
     }
 
-    /* Roles 1..6: Physical Knobs DO NOT affect menus ("No se usan los knobs para nada en los menús") */
-    int k_idx = -1;
-    if (role == 3) k_idx = 0;       /* K1 */
-    else if (role == 4) k_idx = 1;  /* K2 */
-    else if (role == 5) k_idx = 2;  /* K3 */
-    else if (role == 6) k_idx = 3;  /* K4 */
-    else if (role == 1) k_idx = 4;  /* ALGO / K5 */
-    else if (role == 2) k_idx = 5;  /* PRESET / K6 */
+    /* Role 0 handled above */
+    (void)role;
+}
 
-    if (k_idx >= 0) {
-        uint32_t full_idx = (smk_m.knob_bank * 8u) + (uint32_t)k_idx;
-        if (full_idx < SMK_MAX_KNOBS) {
-            /* If in Globe -> CC Assign, auto-select this knob */
-            if (smk_m.page == SMK_PAGE_GLOBE && smk_m.menu_depth == 1 && smk_m.menu_sel[0] == 0) {
-                smk_m.cc_learn_target = 0;
-                smk_m.cc_learn_idx = (uint8_t)full_idx;
-                smk_m.cc_learn_val = smk_m.knob_cc[full_idx];
-                smk_m.cc_learn_seen = 1;
-            }
+/* Dedicated handler for all 8 physical knobs K1..K8 */
+void smk_midi_handle_knob(uint32_t k_idx, int32_t delta)
+{
+    if (!delta || k_idx >= 8u) return;
 
-            int32_t step = delta * 2;
-            if (smk_m.knob_speed == 1) step = delta;
-            else if (smk_m.knob_speed == 2) step = delta * 4;
+    uint32_t full_idx = (smk_m.knob_bank * 8u) + k_idx;
+    if (full_idx >= SMK_MAX_KNOBS) return;
 
-            int32_t v = (int32_t)smk_m.knob_val[full_idx] + step;
-            if (v < 0) v = 0; if (v > 127) v = 127;
-            smk_m.knob_val[full_idx] = (uint8_t)v;
-            smk_midi_send_cc(smk_m.ch_knobs - 1u, smk_m.knob_cc[full_idx], (uint32_t)v);
-        }
+    /* If in Globe -> CC Assign, auto-select this knob */
+    if (smk_m.page == SMK_PAGE_GLOBE && smk_m.menu_depth == 1 && smk_m.menu_sel[0] == 0) {
+        smk_m.cc_learn_target = 0;
+        smk_m.cc_learn_idx = (uint8_t)full_idx;
+        smk_m.cc_learn_val = smk_m.knob_cc[full_idx];
+        smk_m.cc_learn_seen = 1;
     }
+
+    int32_t step = delta * 2;
+    if (smk_m.knob_speed == 1) step = delta;
+    else if (smk_m.knob_speed == 2) step = delta * 4;
+
+    int32_t v = (int32_t)smk_m.knob_val[full_idx] + step;
+    if (v < 0) v = 0; if (v > 127) v = 127;
+    smk_m.knob_val[full_idx] = (uint8_t)v;
+    smk_midi_send_cc(smk_m.ch_knobs - 1u, smk_m.knob_cc[full_idx], (uint32_t)v);
+
+    smk_record_hud_ctrl(SMK_HUD_KNOB, (uint8_t)k_idx, smk_m.knob_bank, smk_m.knob_cc[full_idx], (uint8_t)v, 0);
 }
 
 /* Fader movement handler */
@@ -412,6 +430,7 @@ void smk_midi_handle_fader(uint32_t id, uint32_t val)
         }
 
         smk_midi_send_cc(smk_m.ch_faders - 1u, smk_m.fader_cc[fader_idx], v);
+        smk_record_hud_ctrl(SMK_HUD_FADER, (uint8_t)(id % 4u), smk_m.fader_bank, smk_m.fader_cc[fader_idx], v, 0);
     }
 }
 
@@ -445,11 +464,16 @@ void smk_midi_handle_pad(uint32_t id, uint32_t val)
                 pvel = 127u - (inv * inv) / 127u;
                 if (pvel > 127) pvel = 127;
             }
-            if (v) smk_midi_send_note_on(smk_m.ch_pads - 1u, note, pvel);
-            else smk_midi_send_note_off(smk_m.ch_pads - 1u, note);
+            if (v) {
+                smk_midi_send_note_on(smk_m.ch_pads - 1u, note, pvel);
+                smk_record_hud_ctrl(SMK_HUD_PAD, (uint8_t)(id % 16u), smk_m.pad_bank, (uint8_t)note, (uint8_t)pvel, 0);
+            } else {
+                smk_midi_send_note_off(smk_m.ch_pads - 1u, note);
+            }
         } else {
             /* CC mode */
             smk_midi_send_cc(smk_m.ch_pads - 1u, smk_m.pad_cc[pad_idx], v);
+            smk_record_hud_ctrl(SMK_HUD_PAD, (uint8_t)(id % 16u), smk_m.pad_bank, smk_m.pad_cc[pad_idx], v, 1);
         }
     }
 }
