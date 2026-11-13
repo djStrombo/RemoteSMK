@@ -98,14 +98,104 @@ static void sg_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
 static void sg_chip(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c);
 static int32_t sg_text(int32_t x, int32_t y, int32_t n, const char *s, uint16_t c);
 
+static const uint8_t SMK_KNOB_RING[21][21] = {
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x37, 0x3A, 0x3D, 0x40, 0x42, 0x45, 0x48, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x30, 0x33, 0x36, 0x39, 0x3C, 0x40, 0x43, 0x46, 0x49, 0x4C, 0x4F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0x2C, 0x2F, 0x32, 0x35, 0x38, 0x3C, 0x40, 0x43, 0x47, 0x4A, 0x4D, 0x50, 0x53, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0x28, 0x2A, 0x2D, 0x30, 0x33, 0x37, 0xFF, 0xFF, 0xFF, 0x48, 0x4C, 0x4F, 0x52, 0x55, 0x57, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0x24, 0x26, 0x28, 0x2A, 0x2D, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x52, 0x55, 0x57, 0x59, 0x5B, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0x22, 0x23, 0x25, 0x27, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x58, 0x5A, 0x5C, 0x5D, 0xFF, 0xFF},
+    {0xFF, 0x1E, 0x1F, 0x20, 0x22, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x5D, 0x5F, 0x60, 0x61, 0xFF},
+    {0xFF, 0x1B, 0x1C, 0x1D, 0x1E, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x61, 0x62, 0x63, 0x64, 0xFF},
+    {0xFF, 0x18, 0x19, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x66, 0x66, 0x67, 0xFF},
+    {0xFF, 0x15, 0x15, 0x15, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x6A, 0x6A, 0x6A, 0xFF},
+    {0xFF, 0x12, 0x12, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x6E, 0x6D, 0x6D, 0xFF},
+    {0xFF, 0x0F, 0x0F, 0x0E, 0x0C, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x73, 0x71, 0x70, 0x70, 0xFF},
+    {0xFF, 0x0C, 0x0B, 0x0A, 0x09, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x76, 0x75, 0x74, 0x73, 0xFF},
+    {0xFF, 0xFF, 0x09, 0x07, 0x05, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7C, 0x7A, 0x78, 0x76, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0x06, 0x04, 0x02, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x7D, 0x7B, 0x79, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0x02, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x7D, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+};
+
+static int32_t smk_font_draw(int32_t x, int32_t y, const felucca_font_t *f, int32_t scale, const char *str, uint16_t c)
+{
+    if (scale <= 0) scale = 1;
+    uint32_t r = c >> 11, g = (c >> 5) & 63u, b = c & 31u;
+    for (; *str; str++) {
+        uint32_t ch = (uint8_t)*str;
+        if (ch >= 'a' && ch <= 'z' && f->last < 'a')
+            ch -= 32u;
+        if (ch < f->first || ch > f->last || (ch >= 127u && ch < 160u))
+            ch = '?';
+        uint32_t gi = ch - f->first;
+        uint32_t w = f->bw[gi];
+        uint32_t bpr = (w + 1u) / 2u;
+        const uint8_t *gd = f->data + f->off[gi];
+        for (uint32_t gy = 0; gy < f->h; gy++) {
+            for (uint32_t gx = 0; gx < w; gx++) {
+                uint32_t a = gd[gy * bpr + gx / 2u];
+                a = (gx & 1u) ? (a & 15u) : (a >> 4);
+                if (!a) continue;
+
+                int32_t px = x + (-f->pad + (int32_t)gx) * scale;
+                int32_t py = y + (int32_t)gy * scale;
+
+                for (int32_t sy = 0; sy < scale; sy++) {
+                    int32_t dpy = py + sy;
+                    if (dpy < sg_y0 || dpy >= sg_y0 + SG_BH)
+                        continue;
+                    uint16_t *line_ptr = sg_px + (dpy - sg_y0) * SG_W;
+                    for (int32_t sx = 0; sx < scale; sx++) {
+                        int32_t dpx = px + sx;
+                        if (dpx < 0 || dpx >= SG_W)
+                            continue;
+                        if (a == 15u) {
+                            line_ptr[dpx] = sg_sw(c);
+                        } else {
+                            uint16_t bg = sg_sw(line_ptr[dpx]);
+                            uint32_t br = bg >> 11, bgg = (bg >> 5) & 63u, bb = bg & 31u;
+                            uint32_t nr = (r * a + br * (15u - a)) / 15u;
+                            uint32_t ng = (g * a + bgg * (15u - a)) / 15u;
+                            uint32_t nb = (b * a + bb * (15u - a)) / 15u;
+                            line_ptr[dpx] = sg_sw((uint16_t)((nr << 11) | (ng << 5) | nb));
+                        }
+                    }
+                }
+            }
+        }
+        x += f->adv[gi] * scale;
+    }
+    return x;
+}
+
+static int32_t smk_font_w(const felucca_font_t *f, int32_t scale, const char *str)
+{
+    if (scale <= 0) scale = 1;
+    int32_t w = 0;
+    for (; *str; str++) {
+        uint32_t ch = (uint8_t)*str;
+        if (ch >= 'a' && ch <= 'z' && f->last < 'a')
+            ch -= 32u;
+        if (ch < f->first || ch > f->last || (ch >= 127u && ch < 160u))
+            ch = '?';
+        w += f->adv[ch - f->first] * scale;
+    }
+    return w;
+}
+
 /* Helper to draw standard menu header and footer */
 static void smk_ui_draw_menu_frame(const char *title, const char *hint)
 {
     sg_rect(0, 0, 240, 240, CLR_BG);
-    sg_text(10, 8, 1, title, CLR_INK);
-    sg_rect(0, 24, 240, 1, CLR_INK);
+    smk_font_draw(10, 6, &FONT_B, 1, title, CLR_INK);
+    sg_rect(0, 26, 240, 1, CLR_INK);
     sg_rect(0, 214, 240, 1, CLR_INK);
-    sg_text(8, 222, 1, hint ? hint : "[< >] CHOOSE  [OCT-] OFF  [OCT+] ON", CLR_INK);
+    smk_font_draw(8, 220, &FONT_T, 1, hint ? hint : "[< >] CHOOSE  [OCT-] OFF  [OCT+] ON", CLR_INK);
 }
 
 /* Helper to draw a single text list row */
@@ -113,67 +203,111 @@ static void smk_ui_draw_list_row(int32_t y, const char *prefix, const char *val,
 {
     if (selected) {
         sg_rect(6, y - 2, 228, 20, CLR_INK);
-        sg_text(12, y + 2, 1, prefix, CLR_BG);
-        if (val) sg_text(130, y + 2, 1, val, CLR_BG);
+        smk_font_draw(12, y + 2, &FONT_B, 1, prefix, CLR_BG);
+        if (val) smk_font_draw(130, y + 2, &FONT_B, 1, val, CLR_BG);
     } else {
-        sg_text(12, y + 2, 1, prefix, CLR_INK);
-        if (val) sg_text(130, y + 2, 1, val, CLR_INK);
+        smk_font_draw(12, y + 2, &FONT_B, 1, prefix, CLR_INK);
+        if (val) smk_font_draw(130, y + 2, &FONT_B, 1, val, CLR_INK);
     }
 }
 
-/* Draw a minimalist rotary dial indicator at (x, y), 14x14 */
-static void smk_ui_draw_dial(int32_t x, int32_t y, uint8_t val)
+/* Draw a minimalist circular ring without borders at (x, y), 21x21 */
+static void smk_ui_draw_knob_ring(int32_t x, int32_t y, uint8_t val)
 {
-    sg_rect(x + 3, y, 8, 14, CLR_BORDER);
-    sg_rect(x + 1, y + 1, 12, 12, CLR_BORDER);
-    sg_rect(x, y + 3, 14, 8, CLR_BORDER);
-
-    sg_rect(x + 3, y + 1, 8, 12, CLR_BG);
-    sg_rect(x + 1, y + 3, 12, 8, CLR_BG);
-
-    sg_rect(x + 6, y + 6, 2, 2, CLR_DIM);
-
-    static const int8_t DOT_X[9] = { 2, 1, 1, 3, 6, 9, 11, 11, 10 };
-    static const int8_t DOT_Y[9] = { 9, 7, 4, 2, 1, 2,  4,  7,  9 };
-
-    uint32_t idx = ((uint32_t)val * 8u + 63u) / 127u;
-    if (idx > 8u) idx = 8u;
-
-    sg_rect(x + DOT_X[idx], y + DOT_Y[idx], 2, 2, CLR_INK);
+    int32_t dy, dx;
+    for (dy = 0; dy < 21; dy++) {
+        int32_t py = y + dy;
+        if (py < sg_y0 || py >= sg_y0 + SG_BH) continue;
+        uint16_t *line_ptr = sg_px + (py - sg_y0) * SG_W;
+        for (dx = 0; dx < 21; dx++) {
+            uint8_t th = SMK_KNOB_RING[dy][dx];
+            if (th == 0xFFu) continue;
+            int32_t px = x + dx;
+            if (px < 0 || px >= SG_W) continue;
+            if (th <= val) {
+                line_ptr[px] = sg_sw(CLR_INK);
+            } else {
+                line_ptr[px] = sg_sw(CLR_BORDER);
+            }
+        }
+    }
 }
 
-/* Draw a minimalist horizontal fader slider at (x, y), width 48, height 10 */
+/* Draw a proportional horizontal fader slider at (x, y), width 60, height 14 */
 static void smk_ui_draw_fader_slider(int32_t x, int32_t y, uint8_t val)
 {
-    sg_rect(x, y + 4, 48, 2, CLR_DIM);
-    sg_rect(x, y + 2, 1, 6, CLR_DIM);
-    sg_rect(x + 47, y + 2, 1, 6, CLR_DIM);
-    sg_rect(x + 23, y + 3, 1, 4, CLR_BORDER);
+    /* Fader track (60px wide, 2px high) */
+    sg_rect(x, y + 6, 60, 2, CLR_DIM);
+    /* Left and right end limit markers */
+    sg_rect(x, y + 3, 1, 8, CLR_DIM);
+    sg_rect(x + 59, y + 3, 1, 8, CLR_DIM);
+    /* Center tick */
+    sg_rect(x + 29, y + 4, 1, 6, CLR_BORDER);
 
-    int32_t hx = x + ((int32_t)val * 42) / 127;
-    sg_rect(hx, y, 6, 10, CLR_INK);
-    sg_rect(hx + 2, y + 2, 2, 6, CLR_BG);
+    /* Fader handle (8px wide, 14px high) */
+    int32_t hx = x + ((int32_t)val * 52) / 127;
+    sg_rect(hx, y, 8, 14, CLR_INK);
+    /* Handle grip line */
+    sg_rect(hx + 3, y + 3, 2, 8, CLR_BG);
 }
 
-/* Page 0: Super Minimalist Main Screen */
+/* Page 0: Super Minimalist Main Screen with Fine Barlow Typography */
 static void smk_ui_draw_general(void)
 {
     sg_rect(0, 0, 240, 240, CLR_BG);
 
-    /* Center hero: Last played chord or note in large font */
-    const char *center_text = smk_m.chord_name[0] ? smk_m.chord_name :
-                              smk_m.last_note_name[0] ? smk_m.last_note_name : "--";
-    uint16_t center_color = (smk_m.chord_name[0] || smk_m.last_note_name[0]) ? CLR_INK : CLR_DIM;
+    /* Center hero: Note with superscript octave or Chord with descriptor */
+    if (smk_m.chord_name[0]) {
+        /* Parse Root and Descriptor, e.g. "C" and "MAJOR", "F#" and "7TH" */
+        char root[8], desc[24];
+        uint32_t i = 0, j = 0;
+        while (smk_m.chord_name[i] && smk_m.chord_name[i] != ' ' && j < 7u) {
+            root[j++] = smk_m.chord_name[i++];
+        }
+        root[j] = 0;
+        if (smk_m.chord_name[i] == ' ') i++;
+        j = 0;
+        while (smk_m.chord_name[i] && j < 23u) {
+            desc[j++] = smk_m.chord_name[i++];
+        }
+        desc[j] = 0;
 
-    int32_t scale = 5;
-    while (scale > 1 && smk_text_w(center_text, scale) > 220) {
-        scale--;
+        int32_t w_root = smk_font_w(&FONT_L, 2, root);
+        int32_t w_desc = smk_font_w(&FONT_B, 1, desc);
+        int32_t gap = 6;
+        int32_t total_w = w_root + gap + w_desc;
+        int32_t sx = (240 - total_w) / 2;
+        int32_t ny = 68;
+
+        smk_font_draw(sx, ny, &FONT_L, 2, root, CLR_INK);
+        smk_font_draw(sx + w_root + gap, ny, &FONT_B, 1, desc, CLR_INK);
+    } else if (smk_m.last_note_name[0]) {
+        /* Parse Root and Octave number, e.g. "C" and "3", "F#" and "4", "A" and "-1" */
+        char root[8], oct_str[8];
+        uint32_t i = 0, j = 0;
+        while (smk_m.last_note_name[i] && (smk_m.last_note_name[i] < '0' || smk_m.last_note_name[i] > '9') && smk_m.last_note_name[i] != '-' && j < 7u) {
+            root[j++] = smk_m.last_note_name[i++];
+        }
+        root[j] = 0;
+        j = 0;
+        while (smk_m.last_note_name[i] && j < 7u) {
+            oct_str[j++] = smk_m.last_note_name[i++];
+        }
+        oct_str[j] = 0;
+
+        int32_t w_root = smk_font_w(&FONT_L, 2, root);
+        int32_t w_oct = smk_font_w(&FONT_M, 1, oct_str);
+        int32_t gap = 4;
+        int32_t total_w = w_root + gap + w_oct;
+        int32_t sx = (240 - total_w) / 2;
+        int32_t ny = 68;
+
+        smk_font_draw(sx, ny, &FONT_L, 2, root, CLR_INK);
+        smk_font_draw(sx + w_root + gap, ny, &FONT_M, 1, oct_str, CLR_INK);
+    } else {
+        int32_t w = smk_font_w(&FONT_L, 2, "--");
+        smk_font_draw((240 - w) / 2, 68, &FONT_L, 2, "--", CLR_DIM);
     }
-    int32_t text_w = smk_text_w(center_text, scale);
-    int32_t text_h = 10 * scale;
-    int32_t cx = (240 - text_w) / 2;
-    int32_t cy = 105 - (text_h / 2);
-    sg_text(cx, cy, scale, center_text, center_color);
 
     /* Bottom: Transient control feedback (disappears after ~2s) */
     uint32_t now = plat_ms();
@@ -188,17 +322,17 @@ static void smk_ui_draw_general(void)
             p = smk_ui_put_u(p, knum);
             smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
 
-            int32_t w1 = smk_text_w(s_label, 1);
-            int32_t w2 = smk_text_w(s_cc, 1);
-            int32_t dial_w = 14;
-            int32_t gap = 8;
-            int32_t total_w = w1 + gap + dial_w + gap + w2;
+            int32_t w1 = smk_font_w(&FONT_B, 1, s_label);
+            int32_t w2 = smk_font_w(&FONT_B, 1, s_cc);
+            int32_t ring_w = 21;
+            int32_t gap = 10;
+            int32_t total_w = w1 + gap + ring_w + gap + w2;
             int32_t sx = (240 - total_w) / 2;
-            int32_t sy = 200;
+            int32_t sy = 192;
 
-            sg_text(sx, sy + 2, 1, s_label, CLR_INK);
-            smk_ui_draw_dial(sx + w1 + gap, sy, smk_m.last_ctrl_val);
-            sg_text(sx + w1 + gap + dial_w + gap, sy + 2, 1, s_cc, CLR_INK);
+            smk_font_draw(sx, sy + 2, &FONT_B, 1, s_label, CLR_INK);
+            smk_ui_draw_knob_ring(sx + w1 + gap, sy, smk_m.last_ctrl_val);
+            smk_font_draw(sx + w1 + gap + ring_w + gap, sy + 2, &FONT_B, 1, s_cc, CLR_INK);
             break;
         }
         case SMK_HUD_FADER: {
@@ -208,59 +342,78 @@ static void smk_ui_draw_general(void)
             p = smk_ui_put_u(p, fnum);
             smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
 
-            int32_t w1 = smk_text_w(s_label, 1);
-            int32_t w2 = smk_text_w(s_cc, 1);
-            int32_t fader_w = 48;
-            int32_t gap = 8;
+            int32_t w1 = smk_font_w(&FONT_B, 1, s_label);
+            int32_t w2 = smk_font_w(&FONT_B, 1, s_cc);
+            int32_t fader_w = 60;
+            int32_t gap = 10;
             int32_t total_w = w1 + gap + fader_w + gap + w2;
             int32_t sx = (240 - total_w) / 2;
-            int32_t sy = 202;
+            int32_t sy = 192;
 
-            sg_text(sx, sy, 1, s_label, CLR_INK);
-            smk_ui_draw_fader_slider(sx + w1 + gap, sy, smk_m.last_ctrl_val);
-            sg_text(sx + w1 + gap + fader_w + gap, sy, 1, s_cc, CLR_INK);
+            smk_font_draw(sx, sy + 2, &FONT_B, 1, s_label, CLR_INK);
+            smk_ui_draw_fader_slider(sx + w1 + gap, sy + 3, smk_m.last_ctrl_val);
+            smk_font_draw(sx + w1 + gap + fader_w + gap, sy + 2, &FONT_B, 1, s_cc, CLR_INK);
             break;
         }
         case SMK_HUD_PAD: {
             uint32_t pnum = (uint32_t)smk_m.last_ctrl_bank * 16u + (uint32_t)smk_m.last_ctrl_id + 1u;
             if (smk_m.last_ctrl_sub == 0) {
-                /* NOTES mode: P<num>  <note>  <vel> */
-                char s_pad[32];
+                /* NOTES mode: P<num>  Note^Oct  Vel */
+                char s_pad[8], s_vel[8], nstr[8], root[8], oct_str[8];
                 char *p = smk_ui_put_str(s_pad, "P");
                 p = smk_ui_put_u(p, pnum);
-                *p++ = ' '; *p++ = ' ';
-                char nstr[8];
+                smk_ui_put_u(s_vel, smk_m.last_ctrl_val);
                 smk_ui_format_note(nstr, smk_m.last_ctrl_cc);
-                p = smk_ui_put_str(p, nstr);
-                *p++ = ' '; *p++ = ' ';
-                p = smk_ui_put_u(p, smk_m.last_ctrl_val);
 
-                int32_t w = smk_text_w(s_pad, 1);
-                sg_text((240 - w) / 2, 202, 1, s_pad, CLR_INK);
+                uint32_t ni = 0, rj = 0;
+                while (nstr[ni] && (nstr[ni] < '0' || nstr[ni] > '9') && nstr[ni] != '-' && rj < 7u) {
+                    root[rj++] = nstr[ni++];
+                }
+                root[rj] = 0;
+                rj = 0;
+                while (nstr[ni] && rj < 7u) oct_str[rj++] = nstr[ni++];
+                oct_str[rj] = 0;
+
+                int32_t w_pad = smk_font_w(&FONT_B, 1, s_pad);
+                int32_t w_root = smk_font_w(&FONT_B, 1, root);
+                int32_t w_oct = smk_font_w(&FONT_XS, 1, oct_str);
+                int32_t w_vel = smk_font_w(&FONT_B, 1, s_vel);
+                int32_t gap = 12;
+                int32_t total_w = w_pad + gap + w_root + 2 + w_oct + gap + w_vel;
+                int32_t sx = (240 - total_w) / 2;
+                int32_t sy = 194;
+
+                smk_font_draw(sx, sy, &FONT_B, 1, s_pad, CLR_INK);
+                sx += w_pad + gap;
+                smk_font_draw(sx, sy, &FONT_B, 1, root, CLR_INK);
+                sx += w_root + 2;
+                smk_font_draw(sx, sy - 3, &FONT_XS, 1, oct_str, CLR_INK);
+                sx += w_oct + gap;
+                smk_font_draw(sx, sy, &FONT_B, 1, s_vel, CLR_INK);
             } else {
-                /* CC mode: P<num> [dial] <cc> */
+                /* CC mode */
                 char s_label[8], s_cc[8];
                 char *p = smk_ui_put_str(s_label, "P");
                 p = smk_ui_put_u(p, pnum);
                 smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
 
-                int32_t w1 = smk_text_w(s_label, 1);
-                int32_t w2 = smk_text_w(s_cc, 1);
-                int32_t dial_w = 14;
-                int32_t gap = 8;
-                int32_t total_w = w1 + gap + dial_w + gap + w2;
+                int32_t w1 = smk_font_w(&FONT_B, 1, s_label);
+                int32_t w2 = smk_font_w(&FONT_B, 1, s_cc);
+                int32_t ring_w = 21;
+                int32_t gap = 10;
+                int32_t total_w = w1 + gap + ring_w + gap + w2;
                 int32_t sx = (240 - total_w) / 2;
-                int32_t sy = 200;
+                int32_t sy = 192;
 
-                sg_text(sx, sy + 2, 1, s_label, CLR_INK);
-                smk_ui_draw_dial(sx + w1 + gap, sy, smk_m.last_ctrl_val);
-                sg_text(sx + w1 + gap + dial_w + gap, sy + 2, 1, s_cc, CLR_INK);
+                smk_font_draw(sx, sy + 2, &FONT_B, 1, s_label, CLR_INK);
+                smk_ui_draw_knob_ring(sx + w1 + gap, sy, smk_m.last_ctrl_val);
+                smk_font_draw(sx + w1 + gap + ring_w + gap, sy + 2, &FONT_B, 1, s_cc, CLR_INK);
             }
             break;
         }
         case SMK_HUD_TOAST: {
-            int32_t w = smk_text_w(smk_m.last_ctrl_text, 1);
-            sg_text((240 - w) / 2, 202, 1, smk_m.last_ctrl_text, CLR_INK);
+            int32_t w = smk_font_w(&FONT_B, 1, smk_m.last_ctrl_text);
+            smk_font_draw((240 - w) / 2, 194, &FONT_B, 1, smk_m.last_ctrl_text, CLR_INK);
             break;
         }
         default: break;
@@ -478,28 +631,28 @@ static void smk_ui_draw_globe(void)
             /* CC ASSIGN MODE */
             smk_ui_draw_menu_frame("[ CC ASSIGN ]", "[< >] SET CC  [OCT+] SAVE  [OCT-] CANCEL");
             if (!smk_m.cc_learn_seen) {
-                sg_text(16, 60, 1, "Move any Knob, Fader or Pad", CLR_INK);
-                sg_text(16, 80, 1, "to select it for CC editing...", CLR_DIM);
+                smk_font_draw(16, 60, &FONT_B, 1, "Move any Knob, Fader or Pad", CLR_INK);
+                smk_font_draw(16, 84, &FONT_S, 1, "to select it for CC editing...", CLR_DIM);
             } else {
                 const char *tgt_type = smk_m.cc_learn_target == 0 ? "KNOB" :
                                        smk_m.cc_learn_target == 1 ? "FADER" : "PAD";
-                sg_text(16, 50, 1, "SELECTED CONTROL:", CLR_DIM);
+                smk_font_draw(16, 50, &FONT_S, 1, "SELECTED CONTROL:", CLR_DIM);
 
                 buf[0] = '#';
                 buf[1] = (char)('0' + (smk_m.cc_learn_idx + 1u) / 10u);
                 buf[2] = (char)('0' + (smk_m.cc_learn_idx + 1u) % 10u);
                 buf[3] = 0;
-                sg_text(16, 70, 2, tgt_type, CLR_INK);
-                sg_text(100, 70, 2, buf, CLR_INK);
+                smk_font_draw(16, 70, &FONT_M, 1, tgt_type, CLR_INK);
+                smk_font_draw(110, 70, &FONT_M, 1, buf, CLR_INK);
 
-                sg_text(16, 110, 1, "ASSIGNED CC:", CLR_DIM);
+                smk_font_draw(16, 110, &FONT_S, 1, "ASSIGNED CC:", CLR_DIM);
                 buf[0] = (char)('0' + smk_m.cc_learn_val / 100u);
                 buf[1] = (char)('0' + (smk_m.cc_learn_val % 100u) / 10u);
                 buf[2] = (char)('0' + smk_m.cc_learn_val % 10u);
                 buf[3] = 0;
-                sg_text(16, 130, 2, buf, CLR_INK);
+                smk_font_draw(16, 130, &FONT_M, 1, buf, CLR_INK);
 
-                sg_text(16, 170, 1, "Use < > to change, OCT+ to confirm", CLR_DIM);
+                smk_font_draw(16, 170, &FONT_S, 1, "Use < > to change, OCT+ to confirm", CLR_DIM);
             }
         } else if (smk_m.menu_sel[0] == 4) {
             /* KEY VELOCITY */
