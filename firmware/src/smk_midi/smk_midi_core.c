@@ -221,6 +221,9 @@ void smk_midi_handle_key_down(uint32_t key, uint32_t vel)
         pitch_held_count[pc]++;
         smk_m.held_pitch_mask |= (1u << pc);
     }
+    if (smk_m.held_keys_cnt == 0 && !smk_m.chord_on) {
+        smk_m.chord_name[0] = 0;
+    }
     smk_m.held_keys_cnt++;
     smk_m.last_note_val = (uint8_t)snapped;
     smk_m.last_note_vel = (uint8_t)final_vel;
@@ -256,7 +259,6 @@ void smk_midi_handle_key_up(uint32_t key)
         if (pitch_held_count[pc] == 0) smk_m.held_pitch_mask &= ~(1u << pc);
     }
     if (smk_m.held_keys_cnt > 0) smk_m.held_keys_cnt--;
-    smk_detect_chord();
 
     for (i = 0; i < count; i++) {
         uint32_t n = chord_notes[i];
@@ -284,6 +286,25 @@ static void smk_list_navigate(int8_t *sel, int8_t *scroll, int32_t delta, int32_
     }
 }
 
+static void smk_toast_octave(void)
+{
+    char obuf[16];
+    obuf[0] = 'O'; obuf[1] = 'C'; obuf[2] = 'T'; obuf[3] = ' ';
+    if (smk_m.octave > 0) {
+        obuf[4] = '+';
+        obuf[5] = (char)('0' + smk_m.octave);
+        obuf[6] = 0;
+    } else if (smk_m.octave < 0) {
+        obuf[4] = '-';
+        obuf[5] = (char)('0' + (-smk_m.octave));
+        obuf[6] = 0;
+    } else {
+        obuf[4] = '0';
+        obuf[5] = 0;
+    }
+    smk_set_toast(obuf);
+}
+
 /* Encoder turn handler: Role 0 (< > arrows) navigates; Knobs send CC */
 void smk_midi_handle_encoder(int role, int32_t delta)
 {
@@ -297,12 +318,7 @@ void smk_midi_handle_encoder(int role, int32_t delta)
             if (oct < -3) oct = -3;
             if (oct > 3) oct = 3;
             smk_m.octave = (int8_t)oct;
-            char obuf[16];
-            obuf[0] = 'O'; obuf[1] = 'C'; obuf[2] = 'T'; obuf[3] = ' ';
-            obuf[4] = smk_m.octave < 0 ? '-' : '+';
-            obuf[5] = (char)('0' + (smk_m.octave < 0 ? -smk_m.octave : smk_m.octave));
-            obuf[6] = 0;
-            smk_set_toast(obuf);
+            smk_toast_octave();
             return;
         }
 
@@ -654,7 +670,7 @@ void smk_midi_handle_buttons(uint32_t buttons)
     if (pressed & (1u << 12)) {
         if (smk_m.page == SMK_PAGE_GEN) {
             if (smk_m.octave > -3) smk_m.octave--;
-            smk_set_toast("OCTAVE -");
+            smk_toast_octave();
             return;
         }
 
@@ -709,7 +725,7 @@ void smk_midi_handle_buttons(uint32_t buttons)
     if (pressed & (1u << 13)) {
         if (smk_m.page == SMK_PAGE_GEN) {
             if (smk_m.octave < 3) smk_m.octave++;
-            smk_set_toast("OCTAVE +");
+            smk_toast_octave();
             return;
         }
 

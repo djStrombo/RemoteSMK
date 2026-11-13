@@ -42,6 +42,30 @@ static char *smk_ui_put_str(char *d, const char *s)
     return d;
 }
 
+static char *smk_ui_put_u(char *d, uint32_t v)
+{
+    if (v >= 100u) {
+        *d++ = (char)('0' + (v / 100u) % 10u);
+        *d++ = (char)('0' + (v / 10u) % 10u);
+        *d++ = (char)('0' + v % 10u);
+    } else if (v >= 10u) {
+        *d++ = (char)('0' + (v / 10u) % 10u);
+        *d++ = (char)('0' + v % 10u);
+    } else {
+        *d++ = (char)('0' + v % 10u);
+    }
+    *d = 0;
+    return d;
+}
+
+static inline int32_t smk_text_w(const char *s, int32_t n)
+{
+    if (!s) return 0;
+    int32_t l = 0;
+    while (s[l]) l++;
+    return l * 6 * n;
+}
+
 static char *smk_ui_put_u2(char *d, uint32_t v)
 {
     *d++ = (char)('0' + (v / 10u) % 10u);
@@ -97,214 +121,151 @@ static void smk_ui_draw_list_row(int32_t y, const char *prefix, const char *val,
     }
 }
 
-/* Page 0: General Screen (1-Octave Keyboard, Notes & Detected Chords) */
+/* Draw a minimalist rotary dial indicator at (x, y), 14x14 */
+static void smk_ui_draw_dial(int32_t x, int32_t y, uint8_t val)
+{
+    sg_rect(x + 3, y, 8, 14, CLR_BORDER);
+    sg_rect(x + 1, y + 1, 12, 12, CLR_BORDER);
+    sg_rect(x, y + 3, 14, 8, CLR_BORDER);
+
+    sg_rect(x + 3, y + 1, 8, 12, CLR_BG);
+    sg_rect(x + 1, y + 3, 12, 8, CLR_BG);
+
+    sg_rect(x + 6, y + 6, 2, 2, CLR_DIM);
+
+    static const int8_t DOT_X[9] = { 2, 1, 1, 3, 6, 9, 11, 11, 10 };
+    static const int8_t DOT_Y[9] = { 9, 7, 4, 2, 1, 2,  4,  7,  9 };
+
+    uint32_t idx = ((uint32_t)val * 8u + 63u) / 127u;
+    if (idx > 8u) idx = 8u;
+
+    sg_rect(x + DOT_X[idx], y + DOT_Y[idx], 2, 2, CLR_INK);
+}
+
+/* Draw a minimalist horizontal fader slider at (x, y), width 48, height 10 */
+static void smk_ui_draw_fader_slider(int32_t x, int32_t y, uint8_t val)
+{
+    sg_rect(x, y + 4, 48, 2, CLR_DIM);
+    sg_rect(x, y + 2, 1, 6, CLR_DIM);
+    sg_rect(x + 47, y + 2, 1, 6, CLR_DIM);
+    sg_rect(x + 23, y + 3, 1, 4, CLR_BORDER);
+
+    int32_t hx = x + ((int32_t)val * 42) / 127;
+    sg_rect(hx, y, 6, 10, CLR_INK);
+    sg_rect(hx + 2, y + 2, 2, 6, CLR_BG);
+}
+
+/* Page 0: Super Minimalist Main Screen */
 static void smk_ui_draw_general(void)
 {
-    char buf[32];
     sg_rect(0, 0, 240, 240, CLR_BG);
 
-    /* Header */
-    sg_text(10, 8, 1, "REMOTE SMK", CLR_INK);
+    /* Center hero: Last played chord or note in large font */
+    const char *center_text = smk_m.chord_name[0] ? smk_m.chord_name :
+                              smk_m.last_note_name[0] ? smk_m.last_note_name : "--";
+    uint16_t center_color = (smk_m.chord_name[0] || smk_m.last_note_name[0]) ? CLR_INK : CLR_DIM;
 
-    buf[0] = 'B'; buf[1] = 'P'; buf[2] = 'M'; buf[3] = ':';
-    buf[4] = (char)('0' + smk_m.bpm / 100u);
-    buf[5] = (char)('0' + (smk_m.bpm % 100u) / 10u);
-    buf[6] = (char)('0' + smk_m.bpm % 10u);
-    buf[7] = ' '; buf[8] = 'O'; buf[9] = 'C'; buf[10] = 'T'; buf[11] = ':';
-    buf[12] = smk_m.octave < 0 ? '-' : '+';
-    buf[13] = (char)('0' + (smk_m.octave < 0 ? -smk_m.octave : smk_m.octave));
-    buf[14] = 0;
-    sg_text(118, 8, 1, buf, CLR_INK);
-    sg_rect(0, 24, 240, 1, CLR_INK);
-
-    /* 1-Octave Keyboard graphic:
-     * 7 white keys (28px each = 196px total): C, D, E, F, G, A, B
-     * Start at x = 22, y = 36, height = 68 */
-    static const uint8_t WHITE_PITCH[7] = {0, 2, 4, 5, 7, 9, 11};
-    static const int16_t WHITE_X[7] = {22, 50, 78, 106, 134, 162, 190};
-    uint32_t i;
-
-    for (i = 0; i < 7; i++) {
-        int held = (smk_m.held_pitch_mask >> WHITE_PITCH[i]) & 1u;
-        int32_t x = WHITE_X[i];
-        if (held) {
-            sg_rect(x, 36, 27, 68, CLR_INK);
-        } else {
-            sg_rect(x, 36, 27, 68, CLR_INK);
-            sg_rect(x + 1, 37, 25, 66, CLR_BG);
-        }
+    int32_t scale = 5;
+    while (scale > 1 && smk_text_w(center_text, scale) > 220) {
+        scale--;
     }
+    int32_t text_w = smk_text_w(center_text, scale);
+    int32_t text_h = 10 * scale;
+    int32_t cx = (240 - text_w) / 2;
+    int32_t cy = 105 - (text_h / 2);
+    sg_text(cx, cy, scale, center_text, center_color);
 
-    /* 5 black keys: C#(1), D#(3), F#(6), G#(8), A#(10)
-     * Width: 16px, height: 42px */
-    static const uint8_t BLACK_PITCH[5] = {1, 3, 6, 8, 10};
-    static const int16_t BLACK_X[5] = {42, 70, 126, 154, 182};
-
-    for (i = 0; i < 5; i++) {
-        int held = (smk_m.held_pitch_mask >> BLACK_PITCH[i]) & 1u;
-        int32_t x = BLACK_X[i];
-        if (held) {
-            sg_rect(x, 36, 16, 42, CLR_INK);
-            sg_rect(x + 3, 39, 10, 36, CLR_BG);
-        } else {
-            sg_rect(x, 36, 16, 42, CLR_INK);
-            sg_rect(x + 1, 37, 14, 40, CLR_BG);
-        }
-    }
-
-    /* Split Section: Left = Note / Chord; Right = Live Control HUD / Channels */
-    sg_rect(10, 114, 220, 1, CLR_BORDER);
-    sg_rect(118, 114, 1, 52, CLR_BORDER);
-
-    /* Left side (x = 12..114) */
-    if (smk_m.chord_name[0]) {
-        sg_text(12, 118, 1, "CHORD DETECT:", CLR_DIM);
-        sg_text(12, 134, 2, smk_m.chord_name, CLR_INK);
-        if (smk_m.last_note_name[0]) {
-            sg_text(12, 152, 1, smk_m.last_note_name, CLR_DIM);
-        }
-    } else if (smk_m.last_note_name[0]) {
-        sg_text(12, 118, 1, "NOTE PLAYED:", CLR_DIM);
-        sg_text(12, 134, 2, smk_m.last_note_name, CLR_INK);
-        char vbuf[16];
-        char *p = smk_ui_put_str(vbuf, "VEL: ");
-        p = smk_ui_put_u3(p, smk_m.last_note_vel);
-        sg_text(12, 152, 1, vbuf, CLR_DIM);
-    } else {
-        sg_text(12, 122, 1, "NOTE / CHORD:", CLR_DIM);
-        sg_text(12, 140, 1, "-- READY --", CLR_DIM);
-    }
-
-    /* Right side (x = 124..238) */
+    /* Bottom: Transient control feedback (disappears after ~2s) */
     uint32_t now = plat_ms();
     int show_hud = (smk_m.last_ctrl_ms > 0 && (now - smk_m.last_ctrl_ms) < 2000u && smk_m.last_ctrl_type != SMK_HUD_NONE);
 
     if (show_hud) {
         switch (smk_m.last_ctrl_type) {
         case SMK_HUD_KNOB: {
-            sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
-            char hbuf[20];
-            char *p = smk_ui_put_str(hbuf, "KNOB K");
-            *p++ = (char)('1' + smk_m.last_ctrl_id);
-            p = smk_ui_put_str(p, "  (B");
-            *p++ = (char)('1' + smk_m.last_ctrl_bank);
-            *p++ = ')'; *p = 0;
-            sg_text(124, 134, 2, hbuf, CLR_INK);
+            uint32_t knum = (uint32_t)smk_m.last_ctrl_bank * 8u + (uint32_t)smk_m.last_ctrl_id + 1u;
+            char s_label[8], s_cc[8];
+            char *p = smk_ui_put_str(s_label, "K");
+            p = smk_ui_put_u(p, knum);
+            smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
 
-            char vbuf[24];
-            p = smk_ui_put_str(vbuf, "CC:");
-            p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
-            p = smk_ui_put_str(p, " VAL:");
-            p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
-            sg_text(124, 152, 1, vbuf, CLR_INK);
+            int32_t w1 = smk_text_w(s_label, 1);
+            int32_t w2 = smk_text_w(s_cc, 1);
+            int32_t dial_w = 14;
+            int32_t gap = 8;
+            int32_t total_w = w1 + gap + dial_w + gap + w2;
+            int32_t sx = (240 - total_w) / 2;
+            int32_t sy = 200;
+
+            sg_text(sx, sy + 2, 1, s_label, CLR_INK);
+            smk_ui_draw_dial(sx + w1 + gap, sy, smk_m.last_ctrl_val);
+            sg_text(sx + w1 + gap + dial_w + gap, sy + 2, 1, s_cc, CLR_INK);
             break;
         }
         case SMK_HUD_FADER: {
-            sg_text(124, 118, 1, "CONTROL MOVED:", CLR_DIM);
-            char hbuf[20];
-            char *p = smk_ui_put_str(hbuf, "FADER F");
-            *p++ = (char)('1' + smk_m.last_ctrl_id);
-            p = smk_ui_put_str(p, " (B");
-            *p++ = (char)('1' + smk_m.last_ctrl_bank);
-            *p++ = ')'; *p = 0;
-            sg_text(124, 134, 2, hbuf, CLR_INK);
+            uint32_t fnum = (uint32_t)smk_m.last_ctrl_bank * 4u + (uint32_t)smk_m.last_ctrl_id + 1u;
+            char s_label[8], s_cc[8];
+            char *p = smk_ui_put_str(s_label, "F");
+            p = smk_ui_put_u(p, fnum);
+            smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
 
-            char vbuf[24];
-            p = smk_ui_put_str(vbuf, "CC:");
-            p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
-            p = smk_ui_put_str(p, " VAL:");
-            p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
-            sg_text(124, 152, 1, vbuf, CLR_INK);
+            int32_t w1 = smk_text_w(s_label, 1);
+            int32_t w2 = smk_text_w(s_cc, 1);
+            int32_t fader_w = 48;
+            int32_t gap = 8;
+            int32_t total_w = w1 + gap + fader_w + gap + w2;
+            int32_t sx = (240 - total_w) / 2;
+            int32_t sy = 202;
+
+            sg_text(sx, sy, 1, s_label, CLR_INK);
+            smk_ui_draw_fader_slider(sx + w1 + gap, sy, smk_m.last_ctrl_val);
+            sg_text(sx + w1 + gap + fader_w + gap, sy, 1, s_cc, CLR_INK);
             break;
         }
         case SMK_HUD_PAD: {
-            sg_text(124, 118, 1, "PAD HIT:", CLR_DIM);
-            char hbuf[20];
-            char *p = smk_ui_put_str(hbuf, "PAD P");
-            if (smk_m.last_ctrl_id + 1 >= 10) {
-                p = smk_ui_put_u2(p, smk_m.last_ctrl_id + 1);
-            } else {
-                *p++ = (char)('1' + smk_m.last_ctrl_id);
-            }
-            p = smk_ui_put_str(p, "  (B");
-            *p++ = (char)('1' + smk_m.last_ctrl_bank);
-            *p++ = ')'; *p = 0;
-            sg_text(124, 134, 2, hbuf, CLR_INK);
-
-            char vbuf[24];
+            uint32_t pnum = (uint32_t)smk_m.last_ctrl_bank * 16u + (uint32_t)smk_m.last_ctrl_id + 1u;
             if (smk_m.last_ctrl_sub == 0) {
-                char nstr[12];
+                /* NOTES mode: P<num>  <note>  <vel> */
+                char s_pad[32];
+                char *p = smk_ui_put_str(s_pad, "P");
+                p = smk_ui_put_u(p, pnum);
+                *p++ = ' '; *p++ = ' ';
+                char nstr[8];
                 smk_ui_format_note(nstr, smk_m.last_ctrl_cc);
-                p = smk_ui_put_str(vbuf, "NOTE:");
                 p = smk_ui_put_str(p, nstr);
-                while (p < vbuf + 9) *p++ = ' ';
-                p = smk_ui_put_str(p, " V:");
-                p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
+                *p++ = ' '; *p++ = ' ';
+                p = smk_ui_put_u(p, smk_m.last_ctrl_val);
+
+                int32_t w = smk_text_w(s_pad, 1);
+                sg_text((240 - w) / 2, 202, 1, s_pad, CLR_INK);
             } else {
-                p = smk_ui_put_str(vbuf, "CC:");
-                p = smk_ui_put_u3(p, smk_m.last_ctrl_cc);
-                p = smk_ui_put_str(p, " VAL:");
-                p = smk_ui_put_u3(p, smk_m.last_ctrl_val);
+                /* CC mode: P<num> [dial] <cc> */
+                char s_label[8], s_cc[8];
+                char *p = smk_ui_put_str(s_label, "P");
+                p = smk_ui_put_u(p, pnum);
+                smk_ui_put_u(s_cc, smk_m.last_ctrl_cc);
+
+                int32_t w1 = smk_text_w(s_label, 1);
+                int32_t w2 = smk_text_w(s_cc, 1);
+                int32_t dial_w = 14;
+                int32_t gap = 8;
+                int32_t total_w = w1 + gap + dial_w + gap + w2;
+                int32_t sx = (240 - total_w) / 2;
+                int32_t sy = 200;
+
+                sg_text(sx, sy + 2, 1, s_label, CLR_INK);
+                smk_ui_draw_dial(sx + w1 + gap, sy, smk_m.last_ctrl_val);
+                sg_text(sx + w1 + gap + dial_w + gap, sy + 2, 1, s_cc, CLR_INK);
             }
-            sg_text(124, 152, 1, vbuf, CLR_INK);
             break;
         }
         case SMK_HUD_TOAST: {
-            sg_text(124, 118, 1, "STATUS / ACTION:", CLR_DIM);
-            sg_text(124, 136, 1, smk_m.last_ctrl_text, CLR_INK);
+            int32_t w = smk_text_w(smk_m.last_ctrl_text, 1);
+            sg_text((240 - w) / 2, 202, 1, smk_m.last_ctrl_text, CLR_INK);
             break;
         }
         default: break;
         }
-    } else {
-        sg_text(124, 118, 1, "MIDI CHANNELS:", CLR_DIM);
-        char ch1[24], ch2[24];
-        char *p = smk_ui_put_str(ch1, "KBD:");
-        p = smk_ui_put_u2(p, smk_m.ch_keyboard);
-        p = smk_ui_put_str(p, "   KNB:");
-        p = smk_ui_put_u2(p, smk_m.ch_knobs);
-        sg_text(124, 134, 1, ch1, CLR_INK);
-
-        p = smk_ui_put_str(ch2, "FDR:");
-        p = smk_ui_put_u2(p, smk_m.ch_faders);
-        p = smk_ui_put_str(p, "   PAD:");
-        p = smk_ui_put_u2(p, smk_m.ch_pads);
-        sg_text(124, 150, 1, ch2, CLR_INK);
     }
-
-    /* Status Summary */
-    sg_rect(10, 166, 220, 1, CLR_BORDER);
-
-    /* Line 1: Engines */
-    char ebuf[40];
-    char *p = smk_ui_put_str(ebuf, "SCL:");
-    p = smk_ui_put_str(p, smk_m.scale_on ? "ON " : "-- ");
-    p = smk_ui_put_str(p, " CHD:");
-    p = smk_ui_put_str(p, smk_m.chord_on ? "ON " : "-- ");
-    p = smk_ui_put_str(p, " ARP:");
-    p = smk_ui_put_str(p, smk_m.arp_on ? "ON " : "-- ");
-    p = smk_ui_put_str(p, " REP:");
-    p = smk_ui_put_str(p, smk_m.nr_on ? "ON" : "--");
-    sg_text(12, 174, 1, ebuf, CLR_INK);
-
-    /* Line 2: Banks */
-    char max_b = smk_m.four_banks ? '4' : '2';
-    char bbuf[44];
-    p = smk_ui_put_str(bbuf, "KNB:B");
-    *p++ = (char)('1' + smk_m.knob_bank);
-    *p++ = '/'; *p++ = max_b;
-    p = smk_ui_put_str(p, " FDR:B");
-    *p++ = (char)('1' + smk_m.fader_bank);
-    *p++ = '/'; *p++ = max_b;
-    p = smk_ui_put_str(p, " PAD:B");
-    *p++ = (char)('1' + smk_m.pad_bank);
-    *p++ = '/'; *p++ = max_b;
-    p = smk_ui_put_str(p, smk_m.pad_mode == 0 ? " [NOTES]" : " [CC]");
-    sg_text(12, 192, 1, bbuf, CLR_DIM);
-
-    /* Bottom navigation shortcuts */
-    sg_rect(0, 214, 240, 1, CLR_INK);
-    sg_text(8, 222, 1, "[SCALE]  [CHORD]  [ARP]  [REPEAT]  [GLOBE]", CLR_INK);
 }
 
 /* Page 1: Scale Menu */
